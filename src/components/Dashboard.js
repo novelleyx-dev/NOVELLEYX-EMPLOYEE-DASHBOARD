@@ -9,18 +9,23 @@ import AdminEmployees from "./admin/AdminEmployees";
 import EmployeeDashboardHome from "./employee/EmployeeDashboardHome";
 import EmployeeSkills from "./employee/EmployeeSkills";
 import SharedChat from "./shared/SharedChat";
-
+import AdminTasks from "./admin/AdminTasks";
+import EmployeeTasks from "./employee/EmployeeTasks";
+import SettingsPage from "./shared/SettingsPage";
+import AdminAttendance from "./admin/AdminAttendance";
 export default function Dashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  // Render the proper content based on role and active tab
   const renderContent = () => {
     if (user?.role === "admin") {
       switch (activeTab) {
         case "dashboard": return <AdminDashboardHome />;
         case "employees": return <AdminEmployees />;
         case "chat": return <SharedChat />;
+        case "tasks": return <AdminTasks />;
+        case "attendance": return <AdminAttendance />;
+        case "settings": return <SettingsPage />;
         default: return <div><h2>{activeTab}</h2><p>This module is under construction.</p></div>;
       }
     } else {
@@ -28,6 +33,8 @@ export default function Dashboard() {
         case "dashboard": return <EmployeeDashboardHome />;
         case "skills": return <EmployeeSkills />;
         case "chat": return <SharedChat />;
+        case "tasks": return <EmployeeTasks />;
+        case "settings": return <SettingsPage />;
         default: return <div><h2>{activeTab}</h2><p>This module is under construction.</p></div>;
       }
     }

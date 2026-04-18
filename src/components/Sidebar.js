@@ -17,7 +17,6 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     { id: "tasks", label: "Task Management", icon: <CheckSquare size={20} /> },
     { id: "attendance", label: "Attendance Logs", icon: <Calendar size={20} /> },
     { id: "analytics", label: "Analytics", icon: <BarChart size={20} /> },
-    { id: "files", label: "OneDrive Files", icon: <FileText size={20} /> },
     { id: "chat", label: "Team Chat", icon: <MessageSquare size={20} /> },
   ];
 
@@ -26,7 +25,6 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     { id: "profile", label: "My Profile", icon: <Users size={20} /> },
     { id: "tasks", label: "My Tasks", icon: <CheckSquare size={20} /> },
     { id: "skills", label: "Skill Progression", icon: <BarChart size={20} /> },
-    { id: "files", label: "Files (Read-Only)", icon: <FileText size={20} /> },
     { id: "chat", label: "Group Chat", icon: <MessageSquare size={20} /> },
     { id: "meetings", label: "Meetings", icon: <Calendar size={20} /> },
   ];
@@ -35,11 +33,18 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">
-        <div style={{ width: "32px", height: "32px", backgroundColor: "var(--primary-color)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "bold" }}>
+      <div className="sidebar-header" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "1.5rem 1rem" }}>
+        <div style={{ 
+          width: "40px", height: "40px", 
+          background: "linear-gradient(135deg, #d4af37 0%, #aa7c11 100%)", 
+          borderRadius: "8px", 
+          display: "flex", alignItems: "center", justifyContent: "center", 
+          color: "#111", fontWeight: "bold", fontSize: "1.5rem",
+          boxShadow: "0 4px 10px rgba(212, 175, 55, 0.3)"
+        }}>
           N
         </div>
-        <h2 style={{ fontSize: "1.25rem", margin: 0 }}>Novelleyx</h2>
+        <h2 style={{ fontSize: "1.5rem", margin: 0, fontWeight: "700", letterSpacing: "2px", color: "var(--text-primary)" }}>NOVELLEYX</h2>
       </div>
       
       <nav className="sidebar-nav">
@@ -60,7 +65,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
       </nav>
 
       <div style={{ padding: "1rem", borderTop: "1px solid var(--border-color)" }}>
-        <button className="nav-item" style={{ width: "100%", justifyContent: "flex-start" }}>
+        <button className={`nav-item ${activeTab === "settings" ? "active" : ""}`} onClick={() => setActiveTab("settings")} style={{ width: "100%", justifyContent: "flex-start", textAlign: "left" }}>
           <Settings size={20} />
           Settings
         </button>
