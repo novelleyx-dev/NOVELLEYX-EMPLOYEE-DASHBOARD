@@ -270,10 +270,11 @@ export default function Auth() {
             <span style={{ color: "#ef4444", fontWeight: 700 }}>Do NOT share or lose this code.</span>
           </p>
           <div style={{
-            fontSize: "2rem", letterSpacing: "6px", fontWeight: 900,
+            fontSize: "1.5rem", letterSpacing: "3px", fontWeight: 900,
             background: "linear-gradient(135deg, #d4af37, #aa7c11)",
-            color: "#111", padding: "1rem 1.5rem", borderRadius: "12px",
-            fontFamily: "monospace"
+            color: "#111", padding: "1rem 1.25rem", borderRadius: "12px",
+            fontFamily: "monospace", wordBreak: "break-all",
+            textAlign: "center", lineHeight: 1.4
           }}>
             {generatedCode}
           </div>
