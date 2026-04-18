@@ -28,9 +28,11 @@ function saveMessages(msgs) {
 function loadChannels() {
   try {
     const raw = localStorage.getItem("novelleyx_channels");
-    if (!raw) return ["general", "announcements", "admin-only"];
-    return JSON.parse(raw);
-  } catch { return ["general", "announcements", "admin-only"]; }
+    if (!raw) return ["general", "announcements"];
+    // Always strip out admin-only if it exists from old data
+    const parsed = JSON.parse(raw);
+    return parsed.filter(ch => ch !== "admin-only");
+  } catch { return ["general", "announcements"]; }
 }
 
 function saveChannels(channels) {
@@ -120,7 +122,8 @@ export default function SharedChat() {
   const handleCreateChannel = (e) => {
     e.preventDefault();
     const slug = newChannelName.trim().toLowerCase().replace(/\s+/g, "-");
-    if (slug && !channels.includes(slug)) {
+    // Prevent recreating reserved channels
+    if (slug && slug !== "admin-only" && !channels.includes(slug)) {
       setChannels(prev => [...prev, slug]);
       setActiveChannelId(slug);
       setNewChannelName("");
@@ -185,6 +188,9 @@ export default function SharedChat() {
         <div style={{ padding: "0.875rem 1.25rem", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700 }}>
             <Hash size={18} color="#aa7c11" /> <span style={{ color: "#aa7c11" }}>{activeChannelId}</span>
+            {activeChannelId === "announcements" && (
+              <span style={{ marginLeft: "8px", fontSize: "0.72rem", padding: "2px 8px", borderRadius: "10px", background: "rgba(212,175,55,0.15)", color: "#aa7c11", fontWeight: 600 }}>Admin-only posting</span>
+            )}
           </div>
           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{renderMessages.length} message{renderMessages.length !== 1 ? "s" : ""} • 72-hour history</span>
         </div>
@@ -253,20 +259,27 @@ export default function SharedChat() {
           </div>
         )}
 
-        {/* Input */}
+        {/* Input — locked for non-admins in #announcements */}
         <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid var(--border-color)" }}>
-          <form onSubmit={handleSend} style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--bg-main)", padding: "6px 8px 6px 12px", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-            <input type="file" ref={fileInputRef} style={{ display: "none" }} onChange={e => handleFileChange(e, "file")} multiple />
-            <input type="file" ref={imageInputRef} accept="image/*" style={{ display: "none" }} onChange={e => handleFileChange(e, "image")} multiple />
-            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ color: "var(--text-secondary)", padding: "4px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer" }} title="Attach file"><Paperclip size={18} /></button>
-            <button type="button" onClick={() => imageInputRef.current?.click()} style={{ color: "var(--text-secondary)", padding: "4px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer" }} title="Attach image"><ImageIcon size={18} /></button>
-            <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder={`Message #${activeChannelId}...`}
-              style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: "0.9rem", color: "var(--text-primary)", padding: "4px" }} />
-            <button type="submit" disabled={!input.trim() && attachments.length === 0}
-              style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: 700, fontSize: "0.85rem", background: (input.trim() || attachments.length > 0) ? "linear-gradient(135deg, #d4af37, #aa7c11)" : "var(--border-color)", color: (input.trim() || attachments.length > 0) ? "#111" : "var(--text-secondary)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-              <Send size={15} /> Send
-            </button>
-          </form>
+          {activeChannelId === "announcements" && user?.role !== "admin" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", borderRadius: "12px", background: "rgba(212,175,55,0.06)", border: "1px dashed rgba(212,175,55,0.3)" }}>
+              <Megaphone size={16} color="#aa7c11" />
+              <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Only the admin can post in <strong style={{ color: "#aa7c11" }}>#announcements</strong>. You can read but not reply.</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSend} style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--bg-main)", padding: "6px 8px 6px 12px", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
+              <input type="file" ref={fileInputRef} style={{ display: "none" }} onChange={e => handleFileChange(e, "file")} multiple />
+              <input type="file" ref={imageInputRef} accept="image/*" style={{ display: "none" }} onChange={e => handleFileChange(e, "image")} multiple />
+              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ color: "var(--text-secondary)", padding: "4px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer" }} title="Attach file"><Paperclip size={18} /></button>
+              <button type="button" onClick={() => imageInputRef.current?.click()} style={{ color: "var(--text-secondary)", padding: "4px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer" }} title="Attach image"><ImageIcon size={18} /></button>
+              <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder={`Message #${activeChannelId}...`}
+                style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: "0.9rem", color: "var(--text-primary)", padding: "4px" }} />
+              <button type="submit" disabled={!input.trim() && attachments.length === 0}
+                style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: 700, fontSize: "0.85rem", background: (input.trim() || attachments.length > 0) ? "linear-gradient(135deg, #d4af37, #aa7c11)" : "var(--border-color)", color: (input.trim() || attachments.length > 0) ? "#111" : "var(--text-secondary)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                <Send size={15} /> Send
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
