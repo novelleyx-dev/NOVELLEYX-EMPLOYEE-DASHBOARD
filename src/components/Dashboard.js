@@ -13,6 +13,7 @@ import AdminTasks from "./admin/AdminTasks";
 import EmployeeTasks from "./employee/EmployeeTasks";
 import SettingsPage from "./shared/SettingsPage";
 import AdminAttendance from "./admin/AdminAttendance";
+import AdminAnalytics from "./admin/AdminAnalytics";
 export default function Dashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -25,6 +26,7 @@ export default function Dashboard() {
         case "chat": return <SharedChat />;
         case "tasks": return <AdminTasks />;
         case "attendance": return <AdminAttendance />;
+        case "analytics": return <AdminAnalytics />;
         case "settings": return <SettingsPage />;
         default: return <div><h2>{activeTab}</h2><p>This module is under construction.</p></div>;
       }

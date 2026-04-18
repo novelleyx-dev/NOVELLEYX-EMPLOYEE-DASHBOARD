@@ -2,11 +2,13 @@
 
 import React, { useState } from "react";
 import { Plus, Edit, Trash2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AdminTasks() {
+  const { employees } = useAuth();
   const [tasks, setTasks] = useState([
-    { id: 1, title: "Design Homepage", assignee: "Employee 1", status: "In Progress", description: "Create the main dashboard UI design." },
-    { id: 2, title: "API Integration", assignee: "Employee 2", status: "Pending", description: "Connect the frontend with the user API." }
+    { id: 1, title: "Design Homepage", assignee: employees[0]?.name || "Employee 1", status: "In Progress", description: "Create the main dashboard UI design." },
+    { id: 2, title: "API Integration", assignee: employees[1]?.name || "Employee 2", status: "Pending", description: "Connect the frontend with the user API." }
   ]);
   const [newTask, setNewTask] = useState({ title: "", assignee: "", description: "" });
   const [showAdd, setShowAdd] = useState(false);
@@ -47,7 +49,12 @@ export default function AdminTasks() {
             </div>
             <div style={{ flex: "1 1 200px" }}>
               <label className="block mb-2 text-sm">Assign To (Employee Name)</label>
-              <input type="text" required className="w-full p-2 border rounded" value={newTask.assignee} onChange={e => setNewTask({...newTask, assignee: e.target.value})} />
+              <select required className="w-full p-2 border rounded" value={newTask.assignee} onChange={e => setNewTask({...newTask, assignee: e.target.value})}>
+                <option value="">Select Employee...</option>
+                {employees.filter(emp => emp.approved).map(emp => (
+                  <option key={emp.id} value={emp.name}>{emp.name}</option>
+                ))}
+              </select>
             </div>
             <div style={{ flex: "1 1 100%" }}>
               <label className="block mb-2 text-sm">Description</label>

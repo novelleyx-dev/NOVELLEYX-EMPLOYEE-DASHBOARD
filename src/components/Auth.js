@@ -106,12 +106,26 @@ export default function Auth() {
         {authStep === 1 && (
           <form onSubmit={handleAdminLogin} className="flex-col gap-4">
             <div>
-              <label style={{ display: "block", marginBottom: "0.5rem" }}>Admin Email</label>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="novelleyx@gmail.com" className="w-full p-2 border rounded" />
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600, fontSize: "0.875rem" }}>Admin Email</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@gmail.com"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", fontSize: "0.9rem" }}
+              />
             </div>
             <div>
-              <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem" }}>Password</label>
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full p-2 border rounded" />
+              <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontWeight: 600, fontSize: "0.875rem" }}>Password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder=""
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", fontSize: "0.9rem", letterSpacing: value => value ? "2px" : "0" }}
+              />
             </div>
             <button type="submit" className="btn-primary w-full mt-8">
               Login as Admin

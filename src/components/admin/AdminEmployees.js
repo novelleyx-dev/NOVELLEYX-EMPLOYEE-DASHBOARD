@@ -9,6 +9,18 @@ export default function AdminEmployees() {
   const [editingId, setEditingId] = useState(null);
   const [editCode, setEditCode] = useState("");
 
+  const handleApprove = (id) => {
+    setEmployees(employees.map(emp => emp.id === id ? { ...emp, approved: true } : emp));
+  };
+
+  const handleReject = (id) => {
+    setEmployees(employees.map(emp => emp.id === id ? { ...emp, approved: false } : emp));
+  };
+
+  const handleDelete = (id) => {
+    setEmployees(employees.filter(emp => emp.id !== id));
+  };
+
   const generateCode = () => {
     const d = new Date();
     // YYMMDDHHMMSS format (12 digits)
