@@ -8,18 +8,18 @@ import {
 } from "recharts";
 
 const performanceData = [
-  { name: "Mon", tasks: 12, completed: 10 },
-  { name: "Tue", tasks: 19, completed: 15 },
-  { name: "Wed", tasks: 15, completed: 14 },
-  { name: "Thu", tasks: 22, completed: 20 },
-  { name: "Fri", tasks: 18, completed: 17 },
+  { name: "Mon", tasks: 0, completed: 0 },
+  { name: "Tue", tasks: 0, completed: 0 },
+  { name: "Wed", tasks: 0, completed: 0 },
+  { name: "Thu", tasks: 0, completed: 0 },
+  { name: "Fri", tasks: 0, completed: 0 },
 ];
 
 const attendanceData = [
-  { name: "Week 1", rate: 95 },
-  { name: "Week 2", rate: 98 },
-  { name: "Week 3", rate: 92 },
-  { name: "Week 4", rate: 99 },
+  { name: "Week 1", rate: 0 },
+  { name: "Week 2", rate: 0 },
+  { name: "Week 3", rate: 0 },
+  { name: "Week 4", rate: 0 },
 ];
 
 export default function AdminDashboardHome() {
@@ -33,7 +33,7 @@ export default function AdminDashboardHome() {
             <Users size={24} />
           </div>
           <div className="stat-content">
-            <h3>24</h3>
+            <h3>0</h3>
             <p>Total Employees</p>
           </div>
         </div>
@@ -43,7 +43,7 @@ export default function AdminDashboardHome() {
             <CheckCircle size={24} />
           </div>
           <div className="stat-content">
-            <h3>482</h3>
+            <h3>0</h3>
             <p>Tasks Completed</p>
           </div>
         </div>
@@ -53,7 +53,7 @@ export default function AdminDashboardHome() {
             <Clock size={24} />
           </div>
           <div className="stat-content">
-            <h3>96%</h3>
+            <h3>0%</h3>
             <p>Avg. Attendance</p>
           </div>
         </div>
@@ -63,7 +63,7 @@ export default function AdminDashboardHome() {
             <TrendingUp size={24} />
           </div>
           <div className="stat-content">
-            <h3>+15%</h3>
+            <h3>0%</h3>
             <p>Performance Growth</p>
           </div>
         </div>
@@ -93,7 +93,7 @@ export default function AdminDashboardHome() {
               <LineChart data={attendanceData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis domain={[80, 100]} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }} />
                 <Line type="monotone" dataKey="rate" stroke="var(--success-color)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} />
               </LineChart>
