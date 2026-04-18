@@ -93,10 +93,41 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("novelleyx_user");
   };
 
+  const signupEmployee = (employeeData) => {
+    const d = new Date();
+    // YYMMDDHHMMSS format (12 digits)
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    const newCode = `${yy}${mm}${dd}${hh}${min}${ss}`;
+
+    const newId = employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1;
+    const newEmployee = {
+      id: newId,
+      name: employeeData.name,
+      email: employeeData.email,
+      age: employeeData.age,
+      dob: employeeData.dob,
+      address: employeeData.address,
+      accessCode: newCode,
+      role: "employee",
+      approved: true, // Auto-approve for demo
+      attendance: [],
+      skills: {},
+      avatar: "/next.svg"
+    };
+
+    setEmployees([...employees, newEmployee]);
+    return newCode;
+  };
+
   return (
     <AuthContext.Provider value={{
       user, employees, setEmployees,
-      loginGoogle, loginGithub, loginAdmin, loginEmployeeCode, logout
+      loginGoogle, loginGithub, loginAdmin, loginEmployeeCode, logout, signupEmployee
     }}>
       {children}
     </AuthContext.Provider>
