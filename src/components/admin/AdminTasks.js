@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
 
-function loadTasks() {
-  try { return JSON.parse(localStorage.getItem("novelleyx_tasks") || "[]"); } catch { return []; }
-}
-function saveTasks(tasks) {
-  try { localStorage.setItem("novelleyx_tasks", JSON.stringify(tasks)); } catch {}
-}
+function lsLoad() { try { return JSON.parse(localStorage.getItem("novelleyx_tasks") || "[]"); } catch { return []; } }
+function lsSave(t) { try { localStorage.setItem("novelleyx_tasks", JSON.stringify(t)); } catch {} }
 
 export default function AdminTasks() {
   const { employees } = useAuth();
@@ -18,31 +15,53 @@ export default function AdminTasks() {
   const [showAdd, setShowAdd] = useState(false);
   const [expanded, setExpanded] = useState({});
 
-  useEffect(() => {
-    setTasksState(loadTasks());
+  const setTasks = useCallback((updater) => {
+    setTasksState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      lsSave(next);
+      return next;
+    });
   }, []);
 
-  const setTasks = (updater) => {
-    const resolved = typeof updater === "function" ? updater(tasks) : updater;
-    setTasksState(resolved);
-    saveTasks(resolved);
-  };
+  useEffect(() => {
+    async function load() {
+      if (isSupabaseReady) {
+        const { data } = await supabase.from("tasks").select("*").order("created_at");
+        if (data) { setTasksState(data); lsSave(data); return; }
+      }
+      setTasksState(lsLoad());
+    }
+    load();
 
-  const handleAddTask = (e) => {
+    // Real-time subscription
+    if (isSupabaseReady) {
+      const sub = supabase.channel("tasks_channel")
+        .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => {
+          supabase.from("tasks").select("*").order("created_at").then(({ data }) => {
+            if (data) { setTasksState(data); lsSave(data); }
+          });
+        }).subscribe();
+      return () => sub.unsubscribe();
+    }
+  }, []);
+
+  const handleAddTask = async (e) => {
     e.preventDefault();
     if (!newTask.title || !newTask.assignee) return;
-    const task = {
-      id: Date.now(),
-      title: newTask.title,
-      assignee: newTask.assignee,
-      description: newTask.description,
-      status: "Pending",
-      reviews: [],
-      createdAt: new Date().toISOString(),
-    };
-    setTasks(prev => [...prev, task]);
+    const task = { title: newTask.title, assignee: newTask.assignee, description: newTask.description, status: "Pending", reviews: [] };
+    if (isSupabaseReady) {
+      const { data } = await supabase.from("tasks").insert([task]).select().single();
+      if (data) setTasks(prev => [...prev, data]);
+    } else {
+      setTasks(prev => [...prev, { ...task, id: Date.now(), created_at: new Date().toISOString() }]);
+    }
     setNewTask({ title: "", assignee: "", description: "" });
     setShowAdd(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (isSupabaseReady) await supabase.from("tasks").delete().eq("id", id);
+    setTasks(prev => prev.filter(t => t.id !== id));
   };
 
   const statusColor = (s) => s === "Completed" ? "#10b981" : s === "In Progress" ? "#d4af37" : "#6b7280";
@@ -54,10 +73,8 @@ export default function AdminTasks() {
           <h2 style={{ fontSize: "1.75rem", fontWeight: "700" }}>Task Management</h2>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Assign tasks and view employee reviews.</p>
         </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 18px", borderRadius: "10px", background: "linear-gradient(135deg, #d4af37, #aa7c11)", color: "#111", fontWeight: 700, border: "none", cursor: "pointer" }}
-        >
+        <button onClick={() => setShowAdd(!showAdd)}
+          style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 18px", borderRadius: "10px", background: "linear-gradient(135deg, #d4af37, #aa7c11)", color: "#111", fontWeight: 700, border: "none", cursor: "pointer" }}>
           <Plus size={18} /> Assign New Task
         </button>
       </div>
@@ -69,33 +86,23 @@ export default function AdminTasks() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
               <div>
                 <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem", marginBottom: "6px" }}>Task Title *</label>
-                <input
-                  type="text" required value={newTask.title}
-                  onChange={e => setNewTask({ ...newTask, title: e.target.value })}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-main)", color: "var(--text-primary)" }}
-                />
+                <input type="text" required value={newTask.title} onChange={e => setNewTask({ ...newTask, title: e.target.value })}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-main)", color: "var(--text-primary)" }} />
               </div>
               <div>
                 <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem", marginBottom: "6px" }}>Assign To *</label>
-                <select
-                  required value={newTask.assignee}
-                  onChange={e => setNewTask({ ...newTask, assignee: e.target.value })}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-main)", color: "var(--text-primary)" }}
-                >
+                <select required value={newTask.assignee} onChange={e => setNewTask({ ...newTask, assignee: e.target.value })}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-main)", color: "var(--text-primary)" }}>
                   <option value="">Select Employee...</option>
-                  {employees.filter(emp => emp.approved).map(emp => (
+                  {employees.filter(e => e.approved).map(emp => (
                     <option key={emp.id} value={emp.name}>{emp.name}</option>
                   ))}
                 </select>
               </div>
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem", marginBottom: "6px" }}>Description</label>
-                <textarea
-                  value={newTask.description}
-                  onChange={e => setNewTask({ ...newTask, description: e.target.value })}
-                  rows={3}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-main)", color: "var(--text-primary)", resize: "vertical" }}
-                />
+                <textarea value={newTask.description} onChange={e => setNewTask({ ...newTask, description: e.target.value })} rows={3}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-main)", color: "var(--text-primary)", resize: "vertical" }} />
               </div>
             </div>
             <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -112,60 +119,40 @@ export default function AdminTasks() {
             No tasks assigned yet. Click "Assign New Task" to create one.
           </div>
         )}
-
         {tasks.map(task => (
           <div key={task.id} className="card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
                   <h3 style={{ fontWeight: 700, fontSize: "1rem" }}>{task.title}</h3>
-                  <span style={{ padding: "2px 10px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 600, background: `${statusColor(task.status)}20`, color: statusColor(task.status) }}>
-                    {task.status}
-                  </span>
+                  <span style={{ padding: "2px 10px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 600, background: `${statusColor(task.status)}20`, color: statusColor(task.status) }}>{task.status}</span>
                 </div>
                 <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{task.description}</p>
-                <p style={{ fontSize: "0.8rem", color: "#aa7c11", marginTop: "6px", fontWeight: 600 }}>
-                  Assigned to: {task.assignee}
-                </p>
+                <p style={{ fontSize: "0.8rem", color: "#aa7c11", marginTop: "6px", fontWeight: 600 }}>Assigned to: {task.assignee}</p>
               </div>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <button
-                  onClick={() => setExpanded(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
-                  style={{ display: "flex", alignItems: "center", gap: "4px", padding: "6px 12px", borderRadius: "8px", background: "var(--bg-main)", border: "1px solid var(--border-color)", cursor: "pointer", fontSize: "0.8rem", color: "var(--text-secondary)" }}
-                >
-                  <MessageSquare size={14} />
-                  {(task.reviews || []).length} Review{(task.reviews || []).length !== 1 ? "s" : ""}
+                <button onClick={() => setExpanded(p => ({ ...p, [task.id]: !p[task.id] }))}
+                  style={{ display: "flex", alignItems: "center", gap: "4px", padding: "6px 12px", borderRadius: "8px", background: "var(--bg-main)", border: "1px solid var(--border-color)", cursor: "pointer", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  <MessageSquare size={14} /> {(task.reviews || []).length} Review{(task.reviews || []).length !== 1 ? "s" : ""}
                   {expanded[task.id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
-                <button onClick={() => setTasks(prev => prev.filter(t => t.id !== task.id))} style={{ color: "#ef4444", padding: "6px", borderRadius: "6px", border: "none", cursor: "pointer", background: "transparent" }}>
-                  <Trash2 size={16} />
-                </button>
+                <button onClick={() => handleDelete(task.id)} style={{ color: "#ef4444", padding: "6px", borderRadius: "6px", border: "none", cursor: "pointer", background: "transparent" }}><Trash2 size={16} /></button>
               </div>
             </div>
-
-            {/* Employee reviews/comments */}
             {expanded[task.id] && (
               <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
-                <h4 style={{ fontWeight: 700, fontSize: "0.875rem", marginBottom: "0.75rem", color: "var(--text-secondary)" }}>
-                  Employee Reviews & Comments
-                </h4>
+                <h4 style={{ fontWeight: 700, fontSize: "0.875rem", marginBottom: "0.75rem", color: "var(--text-secondary)" }}>Employee Reviews & Comments</h4>
                 {(task.reviews || []).length === 0 ? (
-                  <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontStyle: "italic" }}>
-                    No reviews submitted yet by the employee.
-                  </p>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    {task.reviews.map((r, i) => (
-                      <div key={i} style={{ padding: "0.875rem 1rem", borderRadius: "10px", background: "var(--bg-main)", border: "1px solid var(--border-color)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                          <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "#aa7c11" }}>{r.author}</span>
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{new Date(r.time).toLocaleString()}</span>
-                        </div>
-                        <p style={{ fontSize: "0.875rem", margin: 0 }}>{r.text}</p>
-                      </div>
-                    ))}
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontStyle: "italic" }}>No reviews submitted yet.</p>
+                ) : (task.reviews || []).map((r, i) => (
+                  <div key={i} style={{ padding: "0.875rem 1rem", borderRadius: "10px", background: "var(--bg-main)", border: "1px solid var(--border-color)", marginBottom: "0.5rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "#aa7c11" }}>{r.author}</span>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{new Date(r.time).toLocaleString()}</span>
+                    </div>
+                    <p style={{ fontSize: "0.875rem", margin: 0 }}>{r.text}</p>
                   </div>
-                )}
+                ))}
               </div>
             )}
           </div>
