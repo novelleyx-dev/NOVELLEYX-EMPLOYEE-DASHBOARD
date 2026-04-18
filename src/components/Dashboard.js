@@ -14,6 +14,8 @@ import EmployeeTasks from "./employee/EmployeeTasks";
 import SettingsPage from "./shared/SettingsPage";
 import AdminAttendance from "./admin/AdminAttendance";
 import AdminAnalytics from "./admin/AdminAnalytics";
+import Meetings from "./shared/Meetings";
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -21,23 +23,25 @@ export default function Dashboard() {
   const renderContent = () => {
     if (user?.role === "admin") {
       switch (activeTab) {
-        case "dashboard": return <AdminDashboardHome />;
-        case "employees": return <AdminEmployees />;
-        case "chat": return <SharedChat />;
-        case "tasks": return <AdminTasks />;
+        case "dashboard":  return <AdminDashboardHome />;
+        case "employees":  return <AdminEmployees />;
+        case "chat":       return <SharedChat />;
+        case "tasks":      return <AdminTasks />;
         case "attendance": return <AdminAttendance />;
-        case "analytics": return <AdminAnalytics />;
-        case "settings": return <SettingsPage />;
-        default: return <div><h2>{activeTab}</h2><p>This module is under construction.</p></div>;
+        case "analytics":  return <AdminAnalytics />;
+        case "meetings":   return <Meetings />;
+        case "settings":   return <SettingsPage />;
+        default: return <div style={{ padding: "2rem" }}><h2>{activeTab}</h2><p style={{ color: "var(--text-secondary)" }}>Module coming soon.</p></div>;
       }
     } else {
       switch (activeTab) {
         case "dashboard": return <EmployeeDashboardHome />;
-        case "skills": return <EmployeeSkills />;
-        case "chat": return <SharedChat />;
-        case "tasks": return <EmployeeTasks />;
-        case "settings": return <SettingsPage />;
-        default: return <div><h2>{activeTab}</h2><p>This module is under construction.</p></div>;
+        case "skills":    return <EmployeeSkills />;
+        case "chat":      return <SharedChat />;
+        case "tasks":     return <EmployeeTasks />;
+        case "meetings":  return <Meetings />;
+        case "settings":  return <SettingsPage />;
+        default: return <div style={{ padding: "2rem" }}><h2>{activeTab}</h2><p style={{ color: "var(--text-secondary)" }}>Module coming soon.</p></div>;
       }
     }
   };

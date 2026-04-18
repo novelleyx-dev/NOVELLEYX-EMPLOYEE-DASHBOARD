@@ -35,9 +35,9 @@ export default function Auth() {
     if (!success) setError("Invalid or unapproved employee access code");
   };
 
-  const mockOAuth = async (provider) => {
-    // Show mocked interaction error to force sign up
-    setError(`${provider} login failed or account not found. Please Sign Up.`);
+  const mockOAuth = (provider) => {
+    // Real OAuth requires a backend. Direct user to sign up or use 12-digit code.
+    setError(`${provider} login requires a connected backend. Please Sign Up below to create your account, or use your 12-digit code.`);
   };
 
   const handleSignUp = (e) => {
@@ -80,11 +80,11 @@ export default function Auth() {
 
         {authStep === 0 && (
           <div className="flex-col gap-4">
-            <button className="login-btn" onClick={() => mockOAuth('Google')}>
-              <LogIn size={20} /> Login with Google
+            <button className="login-btn" onClick={() => mockOAuth('Google')} style={{ opacity: 0.6, cursor: "not-allowed" }} disabled>
+              <LogIn size={20} /> Continue with Google (Coming Soon)
             </button>
-            <button className="login-btn" onClick={() => mockOAuth('GitHub')}>
-              <Code size={20} /> Login with GitHub
+            <button className="login-btn" onClick={() => mockOAuth('GitHub')} style={{ opacity: 0.6, cursor: "not-allowed" }} disabled>
+              <Code size={20} /> Continue with GitHub (Coming Soon)
             </button>
             <button className="btn-primary w-full mt-2" onClick={() => setAuthStep(3)}>
               Sign Up (New Employee)

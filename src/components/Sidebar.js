@@ -12,21 +12,21 @@ export default function Sidebar({ activeTab, setActiveTab }) {
   const isAdmin = user?.role === "admin";
 
   const adminNav = [
-    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
-    { id: "employees", label: "Employees & Access", icon: <Users size={20} /> },
-    { id: "tasks", label: "Task Management", icon: <CheckSquare size={20} /> },
-    { id: "attendance", label: "Attendance Logs", icon: <Calendar size={20} /> },
-    { id: "analytics", label: "Analytics", icon: <BarChart size={20} /> },
-    { id: "chat", label: "Team Chat", icon: <MessageSquare size={20} /> },
+    { id: "dashboard",  label: "Dashboard",       icon: <LayoutDashboard size={20} /> },
+    { id: "employees",  label: "Employees & Access", icon: <Users size={20} /> },
+    { id: "tasks",      label: "Task Management",  icon: <CheckSquare size={20} /> },
+    { id: "attendance", label: "Attendance Logs",  icon: <Calendar size={20} /> },
+    { id: "analytics", label: "Analytics",        icon: <BarChart size={20} /> },
+    { id: "meetings",  label: "Meetings",          icon: <Calendar size={20} /> },
+    { id: "chat",      label: "Team Chat",         icon: <MessageSquare size={20} /> },
   ];
 
   const employeeNav = [
-    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
-    { id: "profile", label: "My Profile", icon: <Users size={20} /> },
-    { id: "tasks", label: "My Tasks", icon: <CheckSquare size={20} /> },
-    { id: "skills", label: "Skill Progression", icon: <BarChart size={20} /> },
-    { id: "chat", label: "Group Chat", icon: <MessageSquare size={20} /> },
-    { id: "meetings", label: "Meetings", icon: <Calendar size={20} /> },
+    { id: "dashboard", label: "Dashboard",       icon: <LayoutDashboard size={20} /> },
+    { id: "tasks",     label: "My Tasks",         icon: <CheckSquare size={20} /> },
+    { id: "skills",   label: "Skill Progression", icon: <BarChart size={20} /> },
+    { id: "meetings", label: "Meetings",          icon: <Calendar size={20} /> },
+    { id: "chat",     label: "Group Chat",        icon: <MessageSquare size={20} /> },
   ];
 
   const navItems = isAdmin ? adminNav : employeeNav;
