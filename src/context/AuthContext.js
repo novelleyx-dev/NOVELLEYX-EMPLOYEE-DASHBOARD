@@ -4,114 +4,126 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext();
 
-// Mock predefined employee access codes
-export const VALID_ACCESS_CODES = [
-  "839201746512",
-  "572903184620",
-  "910284756193",
-  "648291037564",
-  "731920485617"
-];
+// Hardcoded admin credentials
+const ADMIN_PASSWORD = "Abhi@123";
 
-// Initial mock data for employees - using their own emails
-const MOCK_EMPLOYEES = VALID_ACCESS_CODES.map((code, index) => ({
-  id: index + 1,
-  name: `Employee ${index + 1}`,
-  email: `user${index + 1}@gmail.com`, // employees will update this in Settings
-  accessCode: code,
-  role: "employee",
-  approved: true,
-  attendance: [],
-  skills: { "React": 70, "Node.js": 50, "Design": 80 },
-  avatar: "/next.svg",
-  bio: "",
-  phone: "",
-  address: "",
-}));
+// Default seed employees (only used if localStorage is empty)
+const SEED_EMPLOYEES = [];
+
+function loadFromStorage(key, fallback) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveToStorage(key, value) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // null if not logged in
-  const [employees, setEmployees] = useState(MOCK_EMPLOYEES);
+  const [user, setUser] = useState(null);
+  const [employees, setEmployeesState] = useState([]);
   const [notifications, setNotifications] = useState([
     { id: 1, message: "Welcome to Novelleyx!", type: "System", time: new Date().toISOString() }
   ]);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Load persisted data on mount
+  useEffect(() => {
+    const storedUser = loadFromStorage("novelleyx_user", null);
+    const storedEmployees = loadFromStorage("novelleyx_employees", SEED_EMPLOYEES);
+    const storedNotifs = loadFromStorage("novelleyx_notifications", [
+      { id: 1, message: "Welcome to Novelleyx!", type: "System", time: new Date().toISOString() }
+    ]);
+
+    if (storedUser) setUser(storedUser);
+    setEmployeesState(storedEmployees);
+    setNotifications(storedNotifs);
+    setHydrated(true);
+  }, []);
+
+  // Wrapper that always persists employees
+  const setEmployees = (newEmployees) => {
+    const resolved = typeof newEmployees === "function" ? newEmployees(employees) : newEmployees;
+    setEmployeesState(resolved);
+    saveToStorage("novelleyx_employees", resolved);
+  };
 
   const addNotification = (message, type = "System") => {
-    setNotifications(prev => [{ id: Date.now(), message, type, time: new Date().toISOString() }, ...prev]);
+    const notif = { id: Date.now(), message, type, time: new Date().toISOString() };
+    setNotifications(prev => {
+      const updated = [notif, ...prev];
+      saveToStorage("novelleyx_notifications", updated);
+      return updated;
+    });
   };
 
   const updateProfile = (profileData) => {
     if (!user) return;
     const updatedUser = { ...user, ...profileData };
     setUser(updatedUser);
-    localStorage.setItem("novelleyx_user", JSON.stringify(updatedUser));
-    
-    if (user.role === 'employee') {
+    saveToStorage("novelleyx_user", updatedUser);
+    if (user.role === "employee") {
       setEmployees(employees.map(emp => emp.id === user.id ? { ...emp, ...profileData } : emp));
     }
   };
 
-  // Load state from local storage on init (for mock persistence)
-  useEffect(() => {
-    const storedUser = localStorage.getItem("novelleyx_user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  const loginGoogle = () => {
-    // Mock Admin Login behavior or Employee initial phase
-    return new Promise((resolve) => setTimeout(resolve, 500));
-  };
-
-  const loginGithub = () => {
-    return new Promise((resolve) => setTimeout(resolve, 500));
-  };
-
   const loginAdmin = async (email, password) => {
-    // Admin can use any email with the correct password
-    if (password === "Abhi@123") {
-      const adminUser = {
-        name: "Admin",
-        email: email,
-        role: "admin",
-        avatar: "/vercel.svg"
-      };
+    if (password === ADMIN_PASSWORD) {
+      const adminUser = { name: "Admin", email, role: "admin" };
       setUser(adminUser);
-      localStorage.setItem("novelleyx_user", JSON.stringify(adminUser));
+      saveToStorage("novelleyx_user", adminUser);
       return true;
     }
     return false;
   };
 
   const loginEmployeeCode = async (code) => {
-    const employee = employees.find(emp => emp.accessCode === code && emp.approved);
+    // Always read freshest employees from localStorage
+    const freshEmployees = loadFromStorage("novelleyx_employees", []);
+    const employee = freshEmployees.find(emp => emp.accessCode === code && emp.approved);
     if (employee) {
       const now = new Date().toISOString();
-      const updatedEmp = { ...employee, attendance: [...employee.attendance, { loginTime: now }] };
-      const newEmployees = employees.map(e => e.id === employee.id ? updatedEmp : e);
-      setEmployees(newEmployees);
+      const updatedEmp = {
+        ...employee,
+        attendance: [...(employee.attendance || []), { loginTime: now }]
+      };
+      const newList = freshEmployees.map(e => e.id === employee.id ? updatedEmp : e);
+      setEmployeesState(newList);
+      saveToStorage("novelleyx_employees", newList);
       setUser(updatedEmp);
-      localStorage.setItem("novelleyx_user", JSON.stringify(updatedEmp));
-      // Add login notification
-      setNotifications(prev => [
-        { id: Date.now(), message: `Welcome back, ${employee.name}! You've punched in at ${new Date().toLocaleTimeString()}.`, type: "Attendance", time: now },
-        ...prev
-      ]);
+      saveToStorage("novelleyx_user", updatedEmp);
+      addNotification(
+        `Welcome back, ${employee.name}! Punched in at ${new Date().toLocaleTimeString()}.`,
+        "Attendance"
+      );
       return true;
     }
     return false;
   };
 
   const logout = () => {
-    if (user && user.role === 'employee') {
-      // log logout time
+    if (user && user.role === "employee") {
       const now = new Date().toISOString();
-      const updatedEmp = employees.find(e => e.id === user.id);
-      if (updatedEmp && updatedEmp.attendance.length > 0) {
-        updatedEmp.attendance[updatedEmp.attendance.length - 1].logoutTime = now;
-        const newEmployees = employees.map(e => e.id === user.id ? updatedEmp : e);
-        setEmployees(newEmployees);
+      const freshEmployees = loadFromStorage("novelleyx_employees", []);
+      const emp = freshEmployees.find(e => e.id === user.id);
+      if (emp && emp.attendance && emp.attendance.length > 0) {
+        const updated = { ...emp };
+        updated.attendance = [...updated.attendance];
+        updated.attendance[updated.attendance.length - 1] = {
+          ...updated.attendance[updated.attendance.length - 1],
+          logoutTime: now
+        };
+        const newList = freshEmployees.map(e => e.id === user.id ? updated : e);
+        setEmployeesState(newList);
+        saveToStorage("novelleyx_employees", newList);
       }
     }
     setUser(null);
@@ -120,16 +132,16 @@ export function AuthProvider({ children }) {
 
   const signupEmployee = (employeeData) => {
     const d = new Date();
-    // YYMMDDHHMMSS format (12 digits)
-    const yy = String(d.getFullYear()).slice(-2);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    const ss = String(d.getSeconds()).padStart(2, '0');
+    const yy  = String(d.getFullYear()).slice(-2);
+    const mm  = String(d.getMonth() + 1).padStart(2, "0");
+    const dd  = String(d.getDate()).padStart(2, "0");
+    const hh  = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    const ss  = String(d.getSeconds()).padStart(2, "0");
     const newCode = `${yy}${mm}${dd}${hh}${min}${ss}`;
 
-    const newId = employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1;
+    const freshEmployees = loadFromStorage("novelleyx_employees", []);
+    const newId = freshEmployees.length > 0 ? Math.max(...freshEmployees.map(e => e.id)) + 1 : 1;
     const newEmployee = {
       id: newId,
       name: employeeData.name,
@@ -137,22 +149,27 @@ export function AuthProvider({ children }) {
       age: employeeData.age,
       dob: employeeData.dob,
       address: employeeData.address,
+      phone: employeeData.phone || "",
+      bio: "",
       accessCode: newCode,
       role: "employee",
-      approved: true, // Auto-approve for demo
+      approved: true,
       attendance: [],
       skills: {},
-      avatar: "/next.svg"
     };
-
-    setEmployees([...employees, newEmployee]);
+    const newList = [...freshEmployees, newEmployee];
+    setEmployeesState(newList);
+    saveToStorage("novelleyx_employees", newList);
     return newCode;
   };
 
+  if (!hydrated) return null; // prevent SSR mismatch
+
   return (
     <AuthContext.Provider value={{
-      user, employees, setEmployees, notifications, addNotification, updateProfile,
-      loginGoogle, loginGithub, loginAdmin, loginEmployeeCode, logout, signupEmployee
+      user, employees, setEmployees,
+      notifications, addNotification, updateProfile,
+      loginAdmin, loginEmployeeCode, logout, signupEmployee,
     }}>
       {children}
     </AuthContext.Provider>

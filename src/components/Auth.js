@@ -2,227 +2,294 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { LogIn, Code } from "lucide-react";
+import { LogIn, KeyRound, UserPlus, ShieldCheck } from "lucide-react";
 
 export default function Auth() {
-  const { loginGoogle, loginGithub, loginAdmin, loginEmployeeCode, VALID_ACCESS_CODES, signupEmployee } = useAuth();
-  
-  const [authStep, setAuthStep] = useState(0); // 0: Select Login, 1: Admin Creds, 2: Employee Code, 3: Sign Up, 4: Show Code
-  
-  // States for forms
+  const { loginAdmin, loginEmployeeCode, signupEmployee } = useAuth();
+
+  // Steps: "home" | "admin" | "code" | "signup" | "success"
+  const [step, setStep] = useState("home");
+
+  // Admin form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [accessCode, setAccessCode] = useState("");
-  const [error, setError] = useState("");
 
-  // Sign up states
-  const [signUpData, setSignUpData] = useState({
+  // Employee code
+  const [accessCode, setAccessCode] = useState("");
+
+  // Sign up form
+  const [form, setForm] = useState({
     name: "", age: "", dob: "", address: "", email: "", password: "", confirmPassword: ""
   });
   const [generatedCode, setGeneratedCode] = useState("");
 
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const handleAdminLogin = async (e) => {
     e.preventDefault();
-    setError("");
-    const success = await loginAdmin(email, password);
-    if (!success) setError("Invalid admin credentials");
+    setError(""); setLoading(true);
+    const ok = await loginAdmin(email, password);
+    setLoading(false);
+    if (!ok) setError("Wrong password. Hint: Abhi@123");
   };
 
-  const handleEmployeeLogin = async (e) => {
+  const handleCodeLogin = async (e) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    const ok = await loginEmployeeCode(accessCode.trim());
+    setLoading(false);
+    if (!ok) setError("Code not found. Make sure you signed up first and entered the exact 12 digits shown.");
+  };
+
+  const handleSignup = (e) => {
     e.preventDefault();
     setError("");
-    const success = await loginEmployeeCode(accessCode);
-    if (!success) setError("Invalid or unapproved employee access code");
-  };
-
-  const mockOAuth = (provider) => {
-    // Real OAuth requires a backend. Direct user to sign up or use 12-digit code.
-    setError(`${provider} login requires a connected backend. Please Sign Up below to create your account, or use your 12-digit code.`);
-  };
-
-  const handleSignUp = (e) => {
-    e.preventDefault();
-    setError("");
-    if (signUpData.password !== signUpData.confirmPassword) {
-      setError("Passwords do not match!");
-      return;
-    }
-    const code = signupEmployee(signUpData);
+    if (!form.name || !form.email || !form.password) { setError("Name, email and password are required."); return; }
+    if (form.password !== form.confirmPassword) { setError("Passwords don't match."); return; }
+    const code = signupEmployee(form);
     setGeneratedCode(code);
-    setAuthStep(4); // Show the generated code
+    setStep("success");
   };
 
-  return (
-    <div className="auth-container">
-      <div className="auth-box card animate-fade-in" style={{ maxWidth: authStep === 3 ? "500px" : "400px" }}>
-        <div className="text-center mb-8">
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>
-            <div style={{ 
-              width: "60px", height: "60px", 
-              background: "linear-gradient(135deg, #d4af37 0%, #aa7c11 100%)", 
-              borderRadius: "12px", 
-              display: "flex", alignItems: "center", justifyContent: "center", 
-              color: "#111", fontWeight: "bold", fontSize: "2.5rem",
-              boxShadow: "0 4px 15px rgba(212, 175, 55, 0.4)"
-            }}>
-              N
-            </div>
+  /* ---------- Shared styles ---------- */
+  const cardStyle = {
+    width: "100%", maxWidth: step === "signup" ? "480px" : "400px",
+    background: "var(--bg-card)", borderRadius: "20px",
+    padding: "2rem", boxShadow: "0 32px 80px rgba(0,0,0,0.3)",
+    border: "1px solid var(--border-color)"
+  };
+
+  const inputStyle = {
+    width: "100%", padding: "11px 14px", borderRadius: "10px",
+    border: "1px solid var(--border-color)", background: "var(--bg-main)",
+    color: "var(--text-primary)", fontSize: "0.9rem", outline: "none",
+    marginTop: "6px", boxSizing: "border-box"
+  };
+
+  const primaryBtn = {
+    width: "100%", padding: "12px", borderRadius: "10px",
+    background: "linear-gradient(135deg, #d4af37, #aa7c11)",
+    color: "#111", fontWeight: 700, fontSize: "0.95rem",
+    border: "none", cursor: "pointer", marginTop: "1rem"
+  };
+
+  const outlineBtn = {
+    width: "100%", padding: "12px", borderRadius: "10px",
+    background: "transparent", color: "var(--text-secondary)",
+    fontWeight: 600, fontSize: "0.9rem",
+    border: "1px solid var(--border-color)", cursor: "pointer", marginTop: "0.5rem"
+  };
+
+  /* ---------- Logo ---------- */
+  const Logo = () => (
+    <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
+      <div style={{
+        width: "60px", height: "60px", borderRadius: "14px",
+        background: "linear-gradient(135deg, #d4af37, #aa7c11)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "#111", fontWeight: 900, fontSize: "2rem",
+        margin: "0 auto 0.875rem",
+        boxShadow: "0 6px 20px rgba(212,175,55,0.4)"
+      }}>N</div>
+      <h1 style={{ fontWeight: 800, fontSize: "1.75rem", letterSpacing: "3px", margin: 0 }}>NOVELLEYX</h1>
+      <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "4px" }}>Secure Employee Portal</p>
+    </div>
+  );
+
+  /* ---------- Error box ---------- */
+  const ErrorBox = () => error ? (
+    <div style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", color: "#ef4444", fontSize: "0.85rem", marginBottom: "1rem", lineHeight: 1.5 }}>
+      {error}
+    </div>
+  ) : null;
+
+  /* ========== HOME ========== */
+  if (step === "home") return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "var(--bg-main)" }}>
+      <div style={cardStyle}>
+        <Logo />
+        <ErrorBox />
+
+        {/* Employee paths */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <button onClick={() => { setError(""); setStep("code"); }} style={{ ...primaryBtn, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: 0 }}>
+            <KeyRound size={18} /> Login with 12-Digit Code
+          </button>
+
+          <button onClick={() => { setError(""); setStep("signup"); }} style={{ ...outlineBtn, marginTop: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", border: "1px solid #d4af37", color: "#aa7c11" }}>
+            <UserPlus size={18} /> New Employee? Sign Up
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "0.5rem 0" }}>
+            <div style={{ flex: 1, height: "1px", background: "var(--border-color)" }} />
+            <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>OR</span>
+            <div style={{ flex: 1, height: "1px", background: "var(--border-color)" }} />
           </div>
-          <h1 style={{ fontWeight: 700, fontSize: "2rem", letterSpacing: "2px" }}>NOVELLEYX</h1>
-          <p>Secure Employee Portal</p>
+
+          <button onClick={() => { setError(""); setStep("admin"); }} style={{ ...outlineBtn, marginTop: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <ShieldCheck size={18} /> Admin Login
+          </button>
         </div>
-
-        {error && (
-          <div className="mb-4 p-2 rounded" style={{ background: "rgba(239, 68, 68, 0.1)", color: "var(--danger-color)", textAlign: "center", fontSize: "0.875rem", border: "1px solid var(--danger-color)" }}>
-            {error}
-          </div>
-        )}
-
-        {authStep === 0 && (
-          <div className="flex-col gap-4">
-            <button className="login-btn" onClick={() => mockOAuth('Google')} style={{ opacity: 0.6, cursor: "not-allowed" }} disabled>
-              <LogIn size={20} /> Continue with Google (Coming Soon)
-            </button>
-            <button className="login-btn" onClick={() => mockOAuth('GitHub')} style={{ opacity: 0.6, cursor: "not-allowed" }} disabled>
-              <Code size={20} /> Continue with GitHub (Coming Soon)
-            </button>
-            <button className="btn-primary w-full mt-2" onClick={() => setAuthStep(3)}>
-              Sign Up (New Employee)
-            </button>
-            
-            <div style={{ textAlign: "center", margin: "1rem 0", color: "var(--text-secondary)" }}>
-              OR
-            </div>
-            
-            <button className="btn-outline w-full" onClick={() => setAuthStep(2)}>
-              Login with 12-Digit Code
-            </button>
-            <button className="btn-outline w-full mt-2" onClick={() => setAuthStep(1)}>
-              Admin Login
-            </button>
-          </div>
-        )}
-
-        {authStep === 1 && (
-          <form onSubmit={handleAdminLogin} className="flex-col gap-4">
-            <div>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600, fontSize: "0.875rem" }}>Admin Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@gmail.com"
-                style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", fontSize: "0.9rem" }}
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "0.5rem", marginTop: "1rem", fontWeight: 600, fontSize: "0.875rem" }}>Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder=""
-                style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", fontSize: "0.9rem", letterSpacing: value => value ? "2px" : "0" }}
-              />
-            </div>
-            <button type="submit" className="btn-primary w-full mt-8">
-              Login as Admin
-            </button>
-            <button type="button" className="btn-outline w-full mt-4" onClick={() => setAuthStep(0)}>
-              Back
-            </button>
-          </form>
-        )}
-
-        {authStep === 2 && (
-          <form onSubmit={handleEmployeeLogin} className="flex-col gap-4">
-            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-              <h3 style={{ fontSize: "1.25rem" }}>Employee Login (Attendance)</h3>
-              <p style={{ fontSize: "0.875rem" }}>Entering your 12-digit code will punch you in.</p>
-            </div>
-            <div>
-              <input 
-                type="text" 
-                required 
-                maxLength={12} 
-                value={accessCode} 
-                onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, ''))} 
-                placeholder="000000000000" 
-                className="w-full border rounded"
-                style={{ textAlign: "center", letterSpacing: "2px", fontSize: "1.25rem", fontWeight: "600", padding: "0.75rem" }}
-              />
-            </div>
-            <button type="submit" className="btn-primary w-full mt-8">
-              Punch In & Enter Dashboard
-            </button>
-            <button type="button" className="btn-outline w-full mt-4" onClick={() => setAuthStep(0)}>
-              Back
-            </button>
-          </form>
-        )}
-
-        {authStep === 3 && (
-          <form onSubmit={handleSignUp} className="flex-col gap-4">
-            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-              <h3 style={{ fontSize: "1.25rem", fontWeight: "bold" }}>Employee Sign Up</h3>
-              <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Create your account to generate your permanent code.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm mb-1">Full Name</label>
-                <input type="text" required value={signUpData.name} onChange={e => setSignUpData({...signUpData, name: e.target.value})} className="w-full p-2 border rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Age</label>
-                <input type="number" required value={signUpData.age} onChange={e => setSignUpData({...signUpData, age: e.target.value})} className="w-full p-2 border rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Date of Birth</label>
-                <input type="date" required value={signUpData.dob} onChange={e => setSignUpData({...signUpData, dob: e.target.value})} className="w-full p-2 border rounded text-sm" />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm mb-1">Address</label>
-                <input type="text" required value={signUpData.address} onChange={e => setSignUpData({...signUpData, address: e.target.value})} className="w-full p-2 border rounded text-sm" />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm mb-1">Email</label>
-                <input type="email" required value={signUpData.email} onChange={e => setSignUpData({...signUpData, email: e.target.value})} className="w-full p-2 border rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Password</label>
-                <input type="password" required value={signUpData.password} onChange={e => setSignUpData({...signUpData, password: e.target.value})} className="w-full p-2 border rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Confirm Password</label>
-                <input type="password" required value={signUpData.confirmPassword} onChange={e => setSignUpData({...signUpData, confirmPassword: e.target.value})} className="w-full p-2 border rounded text-sm" />
-              </div>
-            </div>
-            <button type="submit" className="btn-primary w-full mt-6">
-              Create Account & Generate Code
-            </button>
-            <button type="button" className="btn-outline w-full mt-2" onClick={() => setAuthStep(0)}>
-              Cancel
-            </button>
-          </form>
-        )}
-
-        {authStep === 4 && (
-          <div className="text-center">
-            <div className="mb-6 p-6 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--success-color)" }}>
-              <h3 style={{ color: "var(--success-color)", fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>Account Created!</h3>
-              <p className="text-sm mb-4">This is your permanent 12-digit attendance code based on your registration date, time, and location data. <strong style={{color:"var(--danger-color)"}}>DO NOT LOSE THIS!</strong></p>
-              <div style={{ fontSize: "2rem", letterSpacing: "4px", fontWeight: "800", color: "#111", background: "linear-gradient(135deg, #d4af37 0%, #aa7c11 100%)", padding: "1rem", borderRadius: "8px" }}>
-                {generatedCode}
-              </div>
-            </div>
-            <button className="btn-primary w-full" onClick={() => { setAccessCode(generatedCode); setAuthStep(2); }}>
-              Proceed to Login
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
+
+  /* ========== CODE LOGIN ========== */
+  if (step === "code") return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "var(--bg-main)" }}>
+      <div style={cardStyle}>
+        <Logo />
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          <h2 style={{ fontWeight: 700, fontSize: "1.2rem" }}>Employee Login</h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "4px" }}>
+            Enter your permanent 12-digit access code.<br />
+            This also records your attendance punch-in.
+          </p>
+        </div>
+        <ErrorBox />
+        <form onSubmit={handleCodeLogin}>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={12}
+            value={accessCode}
+            onChange={e => setAccessCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="000000000000"
+            style={{ ...inputStyle, textAlign: "center", fontSize: "1.75rem", fontWeight: 800, letterSpacing: "6px", padding: "14px" }}
+            autoFocus
+          />
+          <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textAlign: "center", marginTop: "8px" }}>
+            {accessCode.length}/12 digits
+          </p>
+          <button
+            type="submit"
+            disabled={accessCode.length !== 12 || loading}
+            style={{ ...primaryBtn, opacity: accessCode.length === 12 ? 1 : 0.5, cursor: accessCode.length === 12 ? "pointer" : "not-allowed" }}
+          >
+            {loading ? "Checking..." : "Punch In & Enter Dashboard"}
+          </button>
+        </form>
+        <button onClick={() => { setError(""); setStep("home"); }} style={outlineBtn}>← Back</button>
+        <div style={{ textAlign: "center", marginTop: "1rem" }}>
+          <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Don't have a code? </span>
+          <button onClick={() => { setError(""); setStep("signup"); }} style={{ background: "none", border: "none", color: "#aa7c11", fontWeight: 700, cursor: "pointer", fontSize: "0.8rem" }}>Sign Up →</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ========== ADMIN LOGIN ========== */
+  if (step === "admin") return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "var(--bg-main)" }}>
+      <div style={cardStyle}>
+        <Logo />
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          <h2 style={{ fontWeight: 700, fontSize: "1.2rem" }}>Admin Login</h2>
+        </div>
+        <ErrorBox />
+        <form onSubmit={handleAdminLogin}>
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem" }}>Email</label>
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="example@gmail.com" style={inputStyle} autoFocus />
+          </div>
+          <div>
+            <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem" }}>Password</label>
+            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="" style={inputStyle} />
+          </div>
+          <button type="submit" style={primaryBtn} disabled={loading}>
+            {loading ? "Logging in..." : "Login as Admin"}
+          </button>
+        </form>
+        <button onClick={() => { setError(""); setStep("home"); }} style={outlineBtn}>← Back</button>
+      </div>
+    </div>
+  );
+
+  /* ========== SIGN UP ========== */
+  if (step === "signup") return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "var(--bg-main)" }}>
+      <div style={cardStyle}>
+        <Logo />
+        <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+          <h2 style={{ fontWeight: 700, fontSize: "1.2rem" }}>New Employee Sign Up</h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", marginTop: "4px" }}>
+            You only need to sign up once. After signing up, use your 12-digit code every time you log in.
+          </p>
+        </div>
+        <ErrorBox />
+        <form onSubmit={handleSignup}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            <div style={{ gridColumn: "1/-1" }}>
+              <label style={{ fontWeight: 600, fontSize: "0.8rem" }}>Full Name *</label>
+              <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Your full name" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: "0.8rem" }}>Age</label>
+              <input type="number" min="16" max="100" value={form.age} onChange={e => setForm({...form, age: e.target.value})} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: "0.8rem" }}>Date of Birth</label>
+              <input type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: "1/-1" }}>
+              <label style={{ fontWeight: 600, fontSize: "0.8rem" }}>Address</label>
+              <input type="text" value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="City, State" style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: "1/-1" }}>
+              <label style={{ fontWeight: 600, fontSize: "0.8rem" }}>Email *</label>
+              <input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="your@email.com" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: "0.8rem" }}>Password *</label>
+              <input type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: "0.8rem" }}>Confirm Password *</label>
+              <input type="password" required value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} style={inputStyle} />
+            </div>
+          </div>
+          <button type="submit" style={primaryBtn}>Create Account & Get My Code</button>
+        </form>
+        <button onClick={() => { setError(""); setStep("home"); }} style={outlineBtn}>← Back</button>
+      </div>
+    </div>
+  );
+
+  /* ========== SUCCESS ========== */
+  if (step === "success") return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "var(--bg-main)" }}>
+      <div style={{ ...cardStyle, textAlign: "center" }}>
+        <Logo />
+        <div style={{ padding: "1.5rem", borderRadius: "14px", background: "rgba(16,185,129,0.08)", border: "1px solid #10b981", marginBottom: "1.5rem" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🎉</div>
+          <h3 style={{ fontWeight: 800, color: "#10b981", marginBottom: "0.5rem" }}>Account Created!</h3>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
+            This is your <strong>permanent 12-digit access code</strong>.<br />
+            Save it somewhere safe — you'll use it every time you log in.<br />
+            <span style={{ color: "#ef4444", fontWeight: 700 }}>Do NOT share or lose this code.</span>
+          </p>
+          <div style={{
+            fontSize: "2rem", letterSpacing: "6px", fontWeight: 900,
+            background: "linear-gradient(135deg, #d4af37, #aa7c11)",
+            color: "#111", padding: "1rem 1.5rem", borderRadius: "12px",
+            fontFamily: "monospace"
+          }}>
+            {generatedCode}
+          </div>
+        </div>
+        <button
+          onClick={() => { setAccessCode(generatedCode); setStep("code"); }}
+          style={primaryBtn}
+        >
+          Use This Code to Login Now →
+        </button>
+        <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "1rem" }}>
+          Next time: choose "Login with 12-Digit Code" from the home screen and enter this code.
+        </p>
+      </div>
+    </div>
+  );
+
+  return null;
 }
