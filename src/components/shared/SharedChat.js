@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Send, Hash, Plus, Paperclip, Image as ImageIcon, X, Megaphone } from "lucide-react";
+import { Send, Hash, Plus, Paperclip, Image as ImageIcon, X, Megaphone, RefreshCw } from "lucide-react";
 
 const EXPIRY_MS = 72 * 60 * 60 * 1000; // 72 hours
+const CHAT_KEY = "novelleyx_chat";
+const CHANNELS_KEY = "novelleyx_channels";
 
+// ── localStorage helpers ────────────────────────────────────────────────────
 function loadMessages() {
   try {
-    const raw = localStorage.getItem("novelleyx_chat");
+    const raw = localStorage.getItem(CHAT_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     const cutoff = Date.now() - EXPIRY_MS;
-    // Filter out messages older than 72h
     const cleaned = {};
     for (const [ch, msgs] of Object.entries(parsed)) {
       cleaned[ch] = msgs.filter(m => new Date(m._ts || m.time).getTime() > cutoff);
@@ -22,21 +24,20 @@ function loadMessages() {
 }
 
 function saveMessages(msgs) {
-  try { localStorage.setItem("novelleyx_chat", JSON.stringify(msgs)); } catch {}
+  try { localStorage.setItem(CHAT_KEY, JSON.stringify(msgs)); } catch {}
 }
 
 function loadChannels() {
   try {
-    const raw = localStorage.getItem("novelleyx_channels");
+    const raw = localStorage.getItem(CHANNELS_KEY);
     if (!raw) return ["general", "announcements"];
-    // Always strip out admin-only if it exists from old data
     const parsed = JSON.parse(raw);
     return parsed.filter(ch => ch !== "admin-only");
   } catch { return ["general", "announcements"]; }
 }
 
 function saveChannels(channels) {
-  try { localStorage.setItem("novelleyx_channels", JSON.stringify(channels)); } catch {}
+  try { localStorage.setItem(CHANNELS_KEY, JSON.stringify(channels)); } catch {}
 }
 
 export default function SharedChat() {
@@ -50,10 +51,40 @@ export default function SharedChat() {
   const [newChannelName, setNewChannelName] = useState("");
   const [announcementText, setAnnouncementText] = useState("");
   const [showAnnounce, setShowAnnounce] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(Date.now());
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
+  // ── Sync messages from localStorage (called on storage events & manual refresh) ──
+  const syncFromStorage = useCallback(() => {
+    const fresh = loadMessages();
+    const freshChannels = loadChannels();
+    setMessagesState(fresh);
+    setChannelsState(freshChannels);
+    setLastSyncTime(Date.now());
+  }, []);
+
+  // ── Cross-tab sync: listen for storage writes from OTHER tabs/browsers ──────
+  useEffect(() => {
+    const handleStorageEvent = (e) => {
+      if (e.key === CHAT_KEY || e.key === CHANNELS_KEY) {
+        syncFromStorage();
+      }
+    };
+    window.addEventListener("storage", handleStorageEvent);
+    return () => window.removeEventListener("storage", handleStorageEvent);
+  }, [syncFromStorage]);
+
+  // ── Polling fallback: sync every 3 seconds (catches same-browser multi-tab) ─
+  useEffect(() => {
+    const interval = setInterval(() => {
+      syncFromStorage();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [syncFromStorage]);
+
+  // ── Persist helpers ──────────────────────────────────────────────────────────
   const setChannels = (val) => {
     const resolved = typeof val === "function" ? val(channels) : val;
     setChannelsState(resolved);
@@ -61,7 +92,9 @@ export default function SharedChat() {
   };
 
   const setMessages = (updater) => {
-    const resolved = typeof updater === "function" ? updater(messages) : updater;
+    // Always read freshest data before updating to avoid overwriting concurrent writes
+    const current = loadMessages();
+    const resolved = typeof updater === "function" ? updater(current) : updater;
     setMessagesState(resolved);
     saveMessages(resolved);
   };
@@ -73,8 +106,9 @@ export default function SharedChat() {
   }, [activeMessages.length, activeChannelId]);
 
   const buildMsg = (text, extra = {}) => ({
-    id: Date.now(),
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     sender: user?.name || "User",
+    senderId: user?.id || user?.email || "unknown",
     text,
     time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     _ts: new Date().toISOString(),
@@ -105,6 +139,8 @@ export default function SharedChat() {
     addNotification(`📢 ${announcementText}`, "Announcement");
     setAnnouncementText("");
     setShowAnnounce(false);
+    // Automatically navigate to #announcements so admin can confirm it posted
+    setActiveChannelId("announcements");
   };
 
   const handleFileChange = (e, type) => {
@@ -122,7 +158,6 @@ export default function SharedChat() {
   const handleCreateChannel = (e) => {
     e.preventDefault();
     const slug = newChannelName.trim().toLowerCase().replace(/\s+/g, "-");
-    // Prevent recreating reserved channels
     if (slug && slug !== "admin-only" && !channels.includes(slug)) {
       setChannels(prev => [...prev, slug]);
       setActiveChannelId(slug);
@@ -131,11 +166,17 @@ export default function SharedChat() {
     }
   };
 
-  // Mark messages from others as isSelf=false by checking sender vs current user
+  // Determine isSelf per current viewer
+  const currentUserId = user?.id || user?.email || "";
   const renderMessages = activeMessages.map(msg => ({
     ...msg,
-    isSelf: msg.sender === (user?.name || "User"),
+    isSelf: msg.senderId
+      ? msg.senderId === currentUserId
+      : msg.sender === (user?.name || "User"),
   }));
+
+  // Format last sync time
+  const syncLabel = new Date(lastSyncTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 140px)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", background: "var(--bg-card)" }}>
@@ -192,7 +233,16 @@ export default function SharedChat() {
               <span style={{ marginLeft: "8px", fontSize: "0.72rem", padding: "2px 8px", borderRadius: "10px", background: "rgba(212,175,55,0.15)", color: "#aa7c11", fontWeight: 600 }}>Admin-only posting</span>
             )}
           </div>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{renderMessages.length} message{renderMessages.length !== 1 ? "s" : ""} • 72-hour history</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "0.7rem", color: "var(--text-secondary)", opacity: 0.7 }}>
+              synced {syncLabel}
+            </span>
+            <button onClick={syncFromStorage} title="Refresh messages"
+              style={{ padding: "4px", borderRadius: "6px", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-secondary)", display: "flex", alignItems: "center" }}>
+              <RefreshCw size={14} />
+            </button>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{renderMessages.length} message{renderMessages.length !== 1 ? "s" : ""} • 72h history</span>
+          </div>
         </div>
 
         {/* Announcement form */}
@@ -211,7 +261,11 @@ export default function SharedChat() {
           {renderMessages.length === 0 && (
             <div style={{ textAlign: "center", color: "var(--text-secondary)", marginTop: "4rem" }}>
               <Hash size={32} style={{ margin: "0 auto 0.75rem", opacity: 0.2 }} />
-              <p>No messages yet in #{activeChannelId}</p>
+              {activeChannelId === "announcements" && user?.role !== "admin" ? (
+                <p>No announcements yet. Check back later!</p>
+              ) : (
+                <p>No messages yet in #{activeChannelId}</p>
+              )}
             </div>
           )}
           {renderMessages.map(msg => (
