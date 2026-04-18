@@ -1,83 +1,130 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { CheckCircle, MessageSquare } from "lucide-react";
 
+function loadTasks() {
+  try { return JSON.parse(localStorage.getItem("novelleyx_tasks") || "[]"); } catch { return []; }
+}
+function saveTasks(tasks) {
+  try { localStorage.setItem("novelleyx_tasks", JSON.stringify(tasks)); } catch {}
+}
+
 export default function EmployeeTasks() {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Design Homepage", assignee: user?.name, status: "Pending", description: "Create the main dashboard UI design.", review: "" }
-  ]);
+  const [tasks, setTasksState] = useState([]);
   const [reviewText, setReviewText] = useState({});
 
+  useEffect(() => {
+    setTasksState(loadTasks());
+  }, []);
+
+  const setTasks = (updater) => {
+    const resolved = typeof updater === "function" ? updater(tasks) : updater;
+    setTasksState(resolved);
+    saveTasks(resolved);
+  };
+
+  // Only show tasks assigned to this employee
+  const myTasks = tasks.filter(t => t.assignee === user?.name);
+
   const handleStatusChange = (id, newStatus) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
   };
 
   const handleAddReview = (id) => {
-    if(!reviewText[id]) return;
-    setTasks(tasks.map(t => t.id === id ? { ...t, review: reviewText[id] } : t));
+    const text = (reviewText[id] || "").trim();
+    if (!text) return;
+    const review = {
+      author: user?.name || "Employee",
+      text,
+      time: new Date().toISOString(),
+    };
+    setTasks(prev => prev.map(t =>
+      t.id === id ? { ...t, reviews: [...(t.reviews || []), review] } : t
+    ));
+    setReviewText(prev => ({ ...prev, [id]: "" }));
   };
+
+  const statusColor = (s) => s === "Completed" ? "#10b981" : s === "In Progress" ? "#d4af37" : "#6b7280";
 
   return (
     <div>
-      <div className="mb-6">
+      <div style={{ marginBottom: "2rem" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: "700" }}>My Tasks</h2>
-        <p>View tasks assigned to you by the admin and submit your reviews.</p>
+        <p style={{ color: "var(--text-secondary)" }}>Tasks assigned to you by the admin. Submit reviews and mark completion.</p>
       </div>
 
-      <div className="grid gap-6">
-        {tasks.map(task => (
-          <div key={task.id} className="card">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-xl font-bold">{task.title}</h3>
-                <p className="text-gray-500 mt-1">{task.description}</p>
-              </div>
-              <span className={`badge ${task.status === 'Completed' ? 'badge-success' : 'badge-warning'}`}>
-                {task.status}
-              </span>
-            </div>
-
-            <div className="border-t pt-4 mt-4">
-              {task.review ? (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><MessageSquare size={16}/> Your Review</h4>
-                  <p className="text-gray-700">{task.review}</p>
+      {myTasks.length === 0 ? (
+        <div className="card" style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--text-secondary)" }}>
+          <CheckCircle size={40} style={{ margin: "0 auto 1rem", opacity: 0.3 }} />
+          <h3 style={{ fontWeight: 700, marginBottom: "0.5rem" }}>No Tasks Yet</h3>
+          <p style={{ fontSize: "0.875rem" }}>Your admin hasn't assigned any tasks to you yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          {myTasks.map(task => (
+            <div key={task.id} className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                <div>
+                  <h3 style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: "4px" }}>{task.title}</h3>
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{task.description}</p>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold">Write Review / Comments on this task</label>
-                  <textarea 
-                    className="w-full p-2 border rounded" 
-                    placeholder="Describe your work..."
-                    value={reviewText[task.id] || ""}
-                    onChange={e => setReviewText({...reviewText, [task.id]: e.target.value})}
-                  />
-                  <div className="flex justify-between items-center mt-2">
-                    <button 
-                      className="btn-primary flex items-center gap-2"
-                      onClick={() => handleAddReview(task.id)}
-                    >
-                      Submit Review
-                    </button>
-                    {task.status !== 'Completed' && (
-                      <button 
-                        className="btn-outline flex items-center gap-2"
-                        onClick={() => handleStatusChange(task.id, 'Completed')}
-                      >
-                        <CheckCircle size={16} /> Mark as Completed
-                      </button>
-                    )}
-                  </div>
+                <span style={{ padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: 700, background: `${statusColor(task.status)}20`, color: statusColor(task.status), flexShrink: 0 }}>
+                  {task.status}
+                </span>
+              </div>
+
+              {/* Previous reviews */}
+              {(task.reviews || []).length > 0 && (
+                <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem", marginBottom: "0.75rem" }}>
+                  <h4 style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <MessageSquare size={14} /> Your Reviews
+                  </h4>
+                  {task.reviews.filter(r => r.author === user?.name).map((r, i) => (
+                    <div key={i} style={{ padding: "0.625rem 0.875rem", borderRadius: "8px", background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", marginBottom: "6px" }}>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginBottom: "2px" }}>{new Date(r.time).toLocaleString()}</div>
+                      <p style={{ fontSize: "0.875rem", margin: 0 }}>{r.text}</p>
+                    </div>
+                  ))}
                 </div>
               )}
+
+              {/* Review form */}
+              <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "0.875rem" }}>
+                <label style={{ display: "block", fontWeight: 600, fontSize: "0.8rem", marginBottom: "6px" }}>
+                  Add Review / Comment
+                </label>
+                <textarea
+                  rows={2}
+                  value={reviewText[task.id] || ""}
+                  onChange={e => setReviewText(prev => ({ ...prev, [task.id]: e.target.value }))}
+                  placeholder="Describe your progress, questions, or updates..."
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-main)", color: "var(--text-primary)", fontSize: "0.875rem", resize: "vertical", boxSizing: "border-box" }}
+                />
+                <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.625rem" }}>
+                  <button
+                    onClick={() => handleAddReview(task.id)}
+                    disabled={!(reviewText[task.id] || "").trim()}
+                    style={{ padding: "8px 18px", borderRadius: "8px", background: "linear-gradient(135deg, #d4af37, #aa7c11)", color: "#111", fontWeight: 700, border: "none", cursor: "pointer", fontSize: "0.85rem", opacity: (reviewText[task.id] || "").trim() ? 1 : 0.5 }}
+                  >
+                    Submit Review
+                  </button>
+                  {task.status !== "Completed" && (
+                    <button
+                      onClick={() => handleStatusChange(task.id, "Completed")}
+                      style={{ padding: "8px 18px", borderRadius: "8px", background: "rgba(16,185,129,0.12)", color: "#10b981", fontWeight: 700, border: "1px solid #10b981", cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <CheckCircle size={15} /> Mark Complete
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
-        {tasks.length === 0 && <p className="text-gray-500 text-center py-8">No tasks assigned to you yet.</p>}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

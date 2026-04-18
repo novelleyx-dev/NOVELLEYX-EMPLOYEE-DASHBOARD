@@ -50,7 +50,7 @@ export default function Dashboard() {
     <div className="app-layout">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       <main className="main-content">
-        <Header />
+        <Header setActiveTab={setActiveTab} />
         <div className="page-content animate-fade-in">
           {renderContent()}
         </div>
