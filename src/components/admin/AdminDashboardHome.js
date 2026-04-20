@@ -90,14 +90,18 @@ export default function AdminDashboardHome() {
               <tbody>
                 {employees.flatMap(emp =>
                   (emp.attendance || []).map((a, i) => ({ emp, a, i }))
-                ).sort((x, y) => new Date(y.a.loginTime) - new Date(x.a.loginTime)).slice(0, 10).map(({ emp, a, i }) => (
-                  <tr key={`${emp.id}-${i}`} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                    <td style={{ padding: "0.5rem 0", fontWeight: 600 }}>{emp.name}</td>
+                ).sort((x, y) => {
+                  const dx = x.a?.loginTime ? new Date(x.a.loginTime) : 0;
+                  const dy = y.a?.loginTime ? new Date(y.a.loginTime) : 0;
+                  return dy - dx;
+                }).slice(0, 10).map(({ emp, a, i }) => (
+                  <tr key={`${emp.id || emp.email}-${i}`} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                    <td style={{ padding: "0.5rem 0", fontWeight: 600 }}>{emp.name || "Employee"}</td>
                     <td style={{ padding: "0.5rem 0", color: "#10b981" }}>
-                      {new Date(a.loginTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {a.loginTime ? new Date(a.loginTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                     </td>
                     <td style={{ padding: "0.5rem 0", color: a.logoutTime ? "#ef4444" : "#f59e0b" }}>
-                      {a.logoutTime ? new Date(a.logoutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Active"}
+                      {a.logoutTime ? new Date(a.logoutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : (a.loginTime ? "Active" : "—")}
                     </td>
                   </tr>
                 ))}
