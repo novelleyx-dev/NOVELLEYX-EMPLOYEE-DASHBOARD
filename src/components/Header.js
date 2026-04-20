@@ -10,7 +10,6 @@ export default function Header({ setActiveTab }) {
   const { theme, toggleTheme } = useTheme();
   const [showNotifs, setShowNotifs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
   const notifRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -20,18 +19,21 @@ export default function Header({ setActiveTab }) {
   useEffect(() => {
     function handle(e) {
       if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifs(false);
-      if (searchRef.current && !searchRef.current.contains(e.target)) setSearchResults([]);
+      if (searchRef.current && !searchRef.current.contains(e.target)) setSearchQuery("");
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  // Search logic
-  useEffect(() => {
+  // Search results derived from query
+  const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) { setSearchResults([]); return; }
+    if (!q) return [];
 
-    const tasks = (() => { try { return JSON.parse(localStorage.getItem("novelleyx_tasks") || "[]"); } catch { return []; } })();
+    const tasks = (() => {
+      if (typeof window === "undefined") return [];
+      try { return JSON.parse(localStorage.getItem("novelleyx_tasks") || "[]"); } catch { return []; }
+    })();
 
     const empResults = employees
       .filter(e => e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q))
@@ -39,9 +41,9 @@ export default function Header({ setActiveTab }) {
 
     const taskResults = tasks
       .filter(t => t.title.toLowerCase().includes(q) || t.assignee.toLowerCase().includes(q))
-      .map(t => ({ type: "Task", label: t.title, sub: `Assigned to ${t.assignee}`, tab: user?.role === "admin" ? "tasks" : "tasks" }));
+      .map(t => ({ type: "Task", label: t.title, sub: `Assigned to ${t.assignee}`, tab: "tasks" }));
 
-    setSearchResults([...empResults, ...taskResults].slice(0, 8));
+    return [...empResults, ...taskResults].slice(0, 8);
   }, [searchQuery, employees]);
 
   const unreadCount = notifications?.length || 0;
@@ -60,7 +62,7 @@ export default function Header({ setActiveTab }) {
             style={{ paddingLeft: "36px", paddingRight: searchQuery ? "32px" : "12px", borderRadius: "999px", background: "var(--bg-main)", border: "1px solid var(--border-color)", height: "38px", fontSize: "0.875rem", width: "100%", color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }}
           />
           {searchQuery && (
-            <button onClick={() => { setSearchQuery(""); setSearchResults([]); }}
+            <button onClick={() => setSearchQuery("")}
               style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <X size={14} />
             </button>
@@ -71,7 +73,7 @@ export default function Header({ setActiveTab }) {
         {searchResults.length > 0 && (
           <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, width: "320px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "12px", boxShadow: "0 16px 48px rgba(0,0,0,0.15)", zIndex: 200, overflow: "hidden" }}>
             {searchResults.map((r, i) => (
-              <button key={i} onClick={() => { if (setActiveTab) setActiveTab(r.tab); setSearchQuery(""); setSearchResults([]); }}
+              <button key={i} onClick={() => { if (setActiveTab) setActiveTab(r.tab); setSearchQuery(""); }}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: i < searchResults.length - 1 ? "1px solid var(--border-color)" : "none" }}>
                 <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: r.type === "Employee" ? "rgba(212,175,55,0.15)" : "rgba(59,130,246,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <User size={15} color={r.type === "Employee" ? "#aa7c11" : "#3b82f6"} />
@@ -88,7 +90,7 @@ export default function Header({ setActiveTab }) {
 
         {searchQuery && searchResults.length === 0 && (
           <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, width: "280px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "12px", boxShadow: "0 16px 48px rgba(0,0,0,0.15)", zIndex: 200, padding: "1rem", textAlign: "center", color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-            No results for "{searchQuery}"
+            No results for &quot;{searchQuery}&quot;
           </div>
         )}
       </div>

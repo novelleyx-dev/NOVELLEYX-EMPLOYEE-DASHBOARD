@@ -8,13 +8,16 @@ import AdminDashboardHome from "./admin/AdminDashboardHome";
 import AdminEmployees from "./admin/AdminEmployees";
 import EmployeeDashboardHome from "./employee/EmployeeDashboardHome";
 import EmployeeSkills from "./employee/EmployeeSkills";
+import EmployeeInsights from "./employee/EmployeeInsights";
 import SharedChat from "./shared/SharedChat";
 import AdminTasks from "./admin/AdminTasks";
 import EmployeeTasks from "./employee/EmployeeTasks";
 import SettingsPage from "./shared/SettingsPage";
 import AdminAttendance from "./admin/AdminAttendance";
 import AdminAnalytics from "./admin/AdminAnalytics";
+import AdminLeaves from "./admin/AdminLeaves";
 import Meetings from "./shared/Meetings";
+import SickLeave from "./shared/SickLeave";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -30,6 +33,7 @@ export default function Dashboard() {
         case "attendance": return <AdminAttendance />;
         case "analytics":  return <AdminAnalytics />;
         case "meetings":   return <Meetings />;
+        case "leaves":     return <AdminLeaves />;
         case "settings":   return <SettingsPage />;
         default: return <div style={{ padding: "2rem" }}><h2>{activeTab}</h2><p style={{ color: "var(--text-secondary)" }}>Module coming soon.</p></div>;
       }
@@ -40,6 +44,8 @@ export default function Dashboard() {
         case "chat":      return <SharedChat />;
         case "tasks":     return <EmployeeTasks />;
         case "meetings":  return <Meetings />;
+        case "insights":  return <EmployeeInsights />;
+        case "leave":     return <SickLeave />;
         case "settings":  return <SettingsPage />;
         default: return <div style={{ padding: "2rem" }}><h2>{activeTab}</h2><p style={{ color: "var(--text-secondary)" }}>Module coming soon.</p></div>;
       }
@@ -58,3 +64,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

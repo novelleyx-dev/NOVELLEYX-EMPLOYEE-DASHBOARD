@@ -51,7 +51,7 @@ export default function SharedChat() {
   const [newChannelName, setNewChannelName] = useState("");
   const [announcementText, setAnnouncementText] = useState("");
   const [showAnnounce, setShowAnnounce] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState(Date.now());
+  const [lastSyncTime, setLastSyncTime] = useState(() => Date.now());
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -285,8 +285,8 @@ export default function SharedChat() {
                 )}
                 {(msg.attachments || []).map((att, i) => (
                   <div key={i} style={{ marginTop: "4px" }}>
-                    {att.type === "image" ? (
-                      <img src={att.url} alt={att.name} style={{ maxWidth: "220px", maxHeight: "160px", borderRadius: "8px", objectFit: "cover", border: "1px solid var(--border-color)" }} />
+                    {att.type === 'image' ? (
+                      <img src={att.url} alt={att.name} style={{ maxWidth: '220px', maxHeight: '160px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border-color)' }} />
                     ) : (
                       <div style={{ padding: "6px 12px", borderRadius: "8px", background: "var(--bg-main)", border: "1px solid var(--border-color)", fontSize: "0.8rem", display: "flex", gap: "8px", alignItems: "center" }}>
                         <Paperclip size={13} color="#aa7c11" />{att.name} <span style={{ color: "var(--text-secondary)" }}>{att.size}</span>

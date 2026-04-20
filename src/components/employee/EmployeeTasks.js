@@ -74,7 +74,7 @@ export default function EmployeeTasks() {
         <div className="card" style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--text-secondary)" }}>
           <CheckCircle size={40} style={{ margin: "0 auto 1rem", opacity: 0.3 }} />
           <h3 style={{ fontWeight: 700, marginBottom: "0.5rem" }}>No Tasks Yet</h3>
-          <p style={{ fontSize: "0.875rem" }}>Your admin hasn't assigned any tasks to you yet.</p>
+          <p style={{ fontSize: "0.875rem" }}>Your admin hasn&apos;t assigned any tasks to you yet.</p>
         </div>
       ) : myTasks.map(task => (
         <div key={task.id} className="card" style={{ marginBottom: "1.25rem" }}>

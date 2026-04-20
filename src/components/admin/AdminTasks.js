@@ -116,7 +116,7 @@ export default function AdminTasks() {
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         {tasks.length === 0 && (
           <div className="card" style={{ textAlign: "center", padding: "3rem", color: "var(--text-secondary)" }}>
-            No tasks assigned yet. Click "Assign New Task" to create one.
+            No tasks assigned yet. Click &quot;Assign New Task&quot; to create one.
           </div>
         )}
         {tasks.map(task => (

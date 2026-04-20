@@ -16,13 +16,69 @@ export function AuthProvider({ children }) {
   const [notifications, setNotifications] = useState([
     { id: 1, message: "Welcome to Novelleyx!", type: "System", time: new Date().toISOString() }
   ]);
+  const [sickLeaves, setSickLeavesState] = useState([]);
   const [hydrated, setHydrated] = useState(false);
 
   // ── Persist employees ──────────────────────────────────────────────────────
   const setEmployees = useCallback((updater) => {
     setEmployeesState(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
-      lsSet("novelleyx_employees", next); // always keep local copy for quick load
+      lsSet("novelleyx_employees", next);
+
+      // Sync to Supabase asynchronously
+      if (isSupabaseReady) {
+        const prevIds = new Set(prev.map(e => String(e.id)));
+        const nextIds = new Set(next.map(e => String(e.id)));
+
+        // 1. Deletions
+        prev.forEach(emp => {
+          if (!nextIds.has(String(emp.id))) {
+            supabase.from("employees").delete().eq("id", emp.id).then(({ error }) => {
+              if (error) console.error("Supabase delete error:", error);
+            });
+          }
+        });
+
+        // 2. Insertions & Updates
+        next.forEach(emp => {
+          const old = prev.find(e => String(e.id) === String(emp.id));
+          if (!old) {
+            const { id, ...dataToInsert } = emp;
+            // Map camelCase to snake_case for Supabase
+            const dbData = {
+              name: emp.name, email: emp.email, role: emp.role, approved: emp.approved,
+              access_code: emp.accessCode || emp.access_code,
+              attendance: emp.attendance || [], skills: emp.skills || {},
+              age: emp.age || null, dob: emp.dob || null, address: emp.address || "",
+              phone: emp.phone || "", bio: emp.bio || ""
+            };
+            supabase.from("employees").insert([dbData]).then(({ error }) => {
+              if (error) console.error("Supabase insert error:", error);
+            });
+          } else if (JSON.stringify(old) !== JSON.stringify(emp)) {
+            // Update
+            const dbData = {
+              name: emp.name, email: emp.email, role: emp.role, approved: emp.approved,
+              access_code: emp.accessCode || emp.access_code,
+              attendance: emp.attendance || [], skills: emp.skills || {},
+              age: emp.age || null, dob: emp.dob || null, address: emp.address || "",
+              phone: emp.phone || "", bio: emp.bio || ""
+            };
+            supabase.from("employees").update(dbData).eq("id", emp.id).then(({ error }) => {
+              if (error) console.error("Supabase update error:", error);
+            });
+          }
+        });
+      }
+      return next;
+    });
+  }, []);
+
+  // ── Persist sick leaves ───────────────────────────────────────────────────
+  const setSickLeaves = useCallback((updater) => {
+    setSickLeavesState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      lsSet("novelleyx_sick_leaves", next);
       return next;
     });
   }, []);
@@ -42,6 +98,7 @@ export function AuthProvider({ children }) {
       } else {
         setEmployeesState(ls("novelleyx_employees", []));
       }
+      setSickLeavesState(ls("novelleyx_sick_leaves", []));
       setHydrated(true);
     }
     init();
@@ -107,7 +164,8 @@ export function AuthProvider({ children }) {
     setEmployees(prev => prev.map(e => e.id === employee.id ? updatedEmp : e));
     setUser(updatedEmp);
     lsSet("novelleyx_user", updatedEmp);
-    addNotification(`Welcome back, ${employee.name}! Punched in at ${new Date().toLocaleTimeString()}.`, "Attendance");
+    addNotification(`🎉 Welcome back, ${employee.name}! You're logged in at ${new Date().toLocaleTimeString()}.`, "Welcome");
+    addNotification(`🕐 Punched in at ${new Date().toLocaleTimeString()} on ${new Date().toLocaleDateString()}.`, "Attendance");
     return true;
   };
 
@@ -194,6 +252,7 @@ export function AuthProvider({ children }) {
       user, employees, setEmployees,
       notifications, addNotification, updateProfile,
       loginAdmin, loginEmployeeCode, logout, signupEmployee,
+      sickLeaves, setSickLeaves,
       isSupabaseReady,
     }}>
       {children}

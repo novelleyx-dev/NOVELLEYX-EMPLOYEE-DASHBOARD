@@ -1,11 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Plus, Calendar, Clock, Link, Trash2, Video, ChevronLeft, ChevronRight } from "lucide-react";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MEETINGS_KEY = "novelleyx_meetings";
+
+function loadMeetings() {
+  try {
+    const raw = localStorage.getItem(MEETINGS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveMeetings(m) {
+  try { localStorage.setItem(MEETINGS_KEY, JSON.stringify(m)); } catch {}
+}
 
 export default function Meetings() {
   const { user, addNotification } = useAuth();
@@ -15,17 +27,23 @@ export default function Meetings() {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [meetings, setMeetings] = useState([
-    {
-      id: 1,
-      title: "Weekly Team Sync",
-      date: today.toISOString().split("T")[0],
-      time: "10:00",
-      link: "https://meet.google.com/abc-defg-hij",
-      description: "Review weekly progress and blockers.",
-      host: "Admin",
-    },
-  ]);
+  const [meetings, setMeetingsRaw] = useState(loadMeetings);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const fresh = loadMeetings();
+      setMeetingsRaw(fresh);
+    }, 3000);
+    return () => clearInterval(t);
+  }, []);
+
+  const setMeetings = (updater) => {
+    setMeetingsRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveMeetings(next);
+      return next;
+    });
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", date: "", time: "", link: "", description: "" });
@@ -65,9 +83,12 @@ export default function Meetings() {
   };
 
   // Meetings for selected date or upcoming
+  const todayStr = today.toISOString().split("T")[0];
   const displayedMeetings = selectedDate
     ? getMeetingsForDate(selectedDate)
-    : meetings.filter(m => new Date(m.date) >= new Date(today.toDateString())).sort((a, b) => new Date(a.date) - new Date(b.date));
+    : meetings
+        .filter(m => m.date >= todayStr)
+        .sort((a, b) => new Date(a.date + "T" + (a.time || "00:00")) - new Date(b.date + "T" + (b.time || "00:00")));
 
   return (
     <div>
@@ -230,7 +251,7 @@ export default function Meetings() {
               <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--text-secondary)" }}>
                 <Calendar size={36} style={{ margin: "0 auto 0.75rem", opacity: 0.3 }} />
                 <p style={{ fontSize: "0.875rem" }}>No meetings {selectedDate ? "on this day" : "scheduled"}.</p>
-                {isAdmin && <p style={{ fontSize: "0.8rem", marginTop: "4px" }}>Click "Schedule Meeting" to create one.</p>}
+                {isAdmin && <p style={{ fontSize: "0.8rem", marginTop: "4px" }}>Click &quot;Schedule Meeting&quot; to create one.</p>}
               </div>
             ) : (
               displayedMeetings.map(meeting => (

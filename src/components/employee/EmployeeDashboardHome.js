@@ -1,45 +1,103 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Briefcase, Target, Award, Clock } from "lucide-react";
+import { Briefcase, Target, Award, Clock, Sun, Sunset, Coffee, Bell } from "lucide-react";
 
 export default function EmployeeDashboardHome() {
-  const { user } = useAuth();
+  const { user, employees, setEmployees, addNotification } = useAuth();
+  const [lunchSent, setLunchSent] = useState(() => {
+    if (typeof window !== "undefined") {
+      const todayStr = new Date().toISOString().split("T")[0];
+      return !!localStorage.getItem(`novelleyx_lunch_notif_${todayStr}`);
+    }
+    return false;
+  });
+  const [showWelcome, setShowWelcome] = useState(true);
 
   // Real data from attendance logs
   const attendance = user?.attendance || [];
   const recentLogins = attendance.slice(-3).reverse();
-  const lastLogin = recentLogins[0];
 
   // Real task count (new employee → 0)
   const taskCount = 0;
   const completedCount = 0;
 
-  return (
-    <div>
-      {/* Welcome */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-        <div>
-          <h2 style={{ fontSize: "1.75rem", fontWeight: "700", marginBottom: "4px" }}>
-            Welcome back, {user?.name}! 👋
-          </h2>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-            {new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-          </p>
+  // Determine today's attendance state
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayRecords = attendance.filter(a => a.loginTime?.startsWith(todayStr));
+  const morningPunched = todayRecords.some(a => a.session === "morning");
+  const eveningPunched = todayRecords.some(a => a.session === "evening");
+
+  // Lunch break notification at 1pm (auto once per day)
+  useEffect(() => {
+    const check = () => {
+      const now = new Date();
+      if (now.getHours() === 13 && now.getMinutes() === 0 && !lunchSent) {
+        addNotification("🍽️ Lunch Break! Please log out now. Bon appétit!", "Lunch Break");
+        const email = user?.email;
+        if (email) {
+          const a = document.createElement("a");
+          a.href = `mailto:${email}?subject=Lunch+Break+Reminder&body=Hi+${encodeURIComponent(user?.name || "")},+It's+1PM+—+time+for+lunch!+Please+log+out+of+the+Novelleyx+dashboard+for+your+break.`;
+          a.click();
+        }
+        const todayKey = new Date().toISOString().split("T")[0];
+        localStorage.setItem(`novelleyx_lunch_notif_${todayKey}`, "1");
+        setLunchSent(true);
+      }
+    };
+    const t = setInterval(check, 30000);
+    return () => clearInterval(t);
+  }, [addNotification, lunchSent, user?.email, user?.name]);
+
+  const handlePunch = (session) => {
+    const now = new Date().toISOString();
+    const record = { loginTime: now, session, date: todayStr };
+    const updatedAtt = [...attendance, record];
+    const updatedUser = { ...user, attendance: updatedAtt };
+    setEmployees(prev => prev.map(e => (e.id === user?.id || e.email === user?.email) ? { ...e, attendance: updatedAtt } : e));
+    try { localStorage.setItem("novelleyx_user", JSON.stringify(updatedUser)); } catch {}
+    addNotification(`${session === "morning" ? "🌅 Morning" : "🌆 Evening"} punch recorded at ${new Date().toLocaleTimeString()}.`, "Attendance");
+  };
+
+  const punchCard = (session, label, icon, punched) => (
+    <div key={session} style={{ padding: "1.25rem", borderRadius: "12px", border: `1px solid ${punched ? "var(--border-color)" : "#d4af37"}`, background: punched ? "var(--bg-main)" : "rgba(212,175,55,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: punched ? "rgba(16,185,129,0.1)" : "rgba(212,175,55,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: punched ? "#10b981" : "#d4af37" }}>
+          {icon}
         </div>
-        <div style={{
-          width: "56px", height: "56px", borderRadius: "50%",
-          background: "linear-gradient(135deg, #d4af37 0%, #aa7c11 100%)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#111", fontSize: "1.5rem", fontWeight: "800",
-          boxShadow: "0 4px 12px rgba(212,175,55,0.3)"
-        }}>
-          {user?.name?.charAt(0)?.toUpperCase() || "E"}
+        <div>
+          <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{label} Punch</div>
+          <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{punched ? "✅ Already punched in" : "Not yet punched"}</div>
         </div>
       </div>
+      {!punched && (
+        <button onClick={() => handlePunch(session)}
+          style={{ padding: "8px 18px", borderRadius: "8px", background: "linear-gradient(135deg, #d4af37, #aa7c11)", color: "#111", fontWeight: 700, border: "none", cursor: "pointer", fontSize: "0.85rem" }}>
+          Punch In
+        </button>
+      )}
+    </div>
+  );
 
-      {/* Stats — all zero for new employee */}
+  return (
+    <div>
+      {/* Welcome Banner */}
+      {showWelcome && (
+        <div style={{ marginBottom: "1.5rem", padding: "1.25rem 1.5rem", borderRadius: "16px", background: "linear-gradient(135deg, rgba(212,175,55,0.15), rgba(170,124,17,0.08))", border: "1px solid rgba(212,175,55,0.3)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "1.1rem", marginBottom: "4px" }}>
+              🎉 Welcome back, {user?.name}!
+            </div>
+            <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+              {new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · Have a great day!
+            </div>
+          </div>
+          <button onClick={() => setShowWelcome(false)} style={{ color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem" }}>×</button>
+        </div>
+      )}
+
+      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
         {[
           { label: "Active Tasks", value: taskCount, icon: <Briefcase size={22} />, color: "#d4af37", bg: "rgba(212,175,55,0.1)" },
@@ -60,7 +118,24 @@ export default function EmployeeDashboardHome() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-        {/* Attendance Log */}
+        {/* Dual Attendance Punch */}
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "1rem" }}>
+            <Bell size={18} color="#d4af37" />
+            <h3 style={{ fontWeight: 700, margin: 0 }}>Today&apos;s Attendance</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {punchCard("morning", "Morning", <Sun size={20} />, morningPunched)}
+            {punchCard("evening", "Evening", <Sunset size={20} />, eveningPunched)}
+          </div>
+          {lunchSent && (
+            <div style={{ marginTop: "0.75rem", padding: "8px 12px", borderRadius: "8px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", fontSize: "0.8rem", color: "#f59e0b", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Coffee size={14} /> Lunch break notification sent at 1:00 PM.
+            </div>
+          )}
+        </div>
+
+        {/* Recent Attendance Log */}
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: "1rem" }}>Recent Attendance Logs</h3>
           {recentLogins.length > 0 ? (
@@ -68,19 +143,17 @@ export default function EmployeeDashboardHome() {
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <th style={{ padding: "0.5rem 0", textAlign: "left", fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600 }}>Date</th>
-                  <th style={{ padding: "0.5rem 0", textAlign: "left", fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600 }}>Punch In</th>
-                  <th style={{ padding: "0.5rem 0", textAlign: "left", fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600 }}>Punch Out</th>
+                  <th style={{ padding: "0.5rem 0", textAlign: "left", fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600 }}>Session</th>
+                  <th style={{ padding: "0.5rem 0", textAlign: "left", fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600 }}>Time</th>
                 </tr>
               </thead>
               <tbody>
                 {recentLogins.map((log, i) => (
                   <tr key={i} style={{ borderBottom: "1px solid var(--border-color)" }}>
                     <td style={{ padding: "0.75rem 0", fontSize: "0.875rem" }}>{new Date(log.loginTime).toLocaleDateString()}</td>
+                    <td style={{ padding: "0.75rem 0", fontSize: "0.875rem", textTransform: "capitalize" }}>{log.session || "login"}</td>
                     <td style={{ padding: "0.75rem 0", color: "#10b981", fontWeight: 600, fontSize: "0.875rem" }}>
                       {new Date(log.loginTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </td>
-                    <td style={{ padding: "0.75rem 0", color: log.logoutTime ? "#ef4444" : "#f59e0b", fontWeight: 600, fontSize: "0.875rem" }}>
-                      {log.logoutTime ? new Date(log.logoutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Active"}
                     </td>
                   </tr>
                 ))}
@@ -90,34 +163,12 @@ export default function EmployeeDashboardHome() {
             <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-secondary)" }}>
               <Clock size={32} style={{ margin: "0 auto 0.75rem", opacity: 0.3 }} />
               <p style={{ fontSize: "0.875rem" }}>No attendance records yet.</p>
-              <p style={{ fontSize: "0.8rem", marginTop: "4px" }}>Punch in via the login screen each day.</p>
+              <p style={{ fontSize: "0.8rem", marginTop: "4px" }}>Use the Morning/Evening punch above.</p>
             </div>
           )}
-        </div>
-
-        {/* Getting Started */}
-        <div className="card">
-          <h3 style={{ fontWeight: 700, marginBottom: "1rem" }}>Getting Started</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-            {[
-              { title: "Complete your profile", desc: "Add your bio, phone, and address in Settings.", done: !!(user?.bio || user?.phone) },
-              { title: "View assigned tasks", desc: "Check your Tasks tab for work from admin.", done: false },
-              { title: "Join the team chat", desc: "Introduce yourself in #general.", done: false },
-              { title: "Attend your first meeting", desc: "Check the Meetings tab for scheduled calls.", done: false },
-            ].map((item, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", padding: "0.75rem", borderRadius: "10px", background: "var(--bg-main)", border: "1px solid var(--border-color)" }}>
-                <div style={{ width: "22px", height: "22px", borderRadius: "50%", border: `2px solid ${item.done ? "#10b981" : "var(--border-color)"}`, background: item.done ? "#10b981" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "2px" }}>
-                  {item.done && <span style={{ color: "white", fontSize: "12px" }}>✓</span>}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{item.title}</div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "2px" }}>{item.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>
   );
 }
+
