@@ -245,8 +245,6 @@ export function AuthProvider({ children }) {
     return code;
   };
 
-  if (!hydrated) return null;
-
   return (
     <AuthContext.Provider value={{
       user, employees, setEmployees,
@@ -254,8 +252,16 @@ export function AuthProvider({ children }) {
       loginAdmin, loginEmployeeCode, logout, signupEmployee,
       sickLeaves, setSickLeaves,
       isSupabaseReady,
+      hydrated // Export this so components know if data is ready
     }}>
-      {children}
+      {hydrated ? children : (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#020617", color: "#3b82f6", fontFamily: "Outfit, sans-serif" }}>
+          <div style={{ textAlign: "center" }}>
+            <div className="animate-spin" style={{ width: "40px", height: "40px", border: "3px solid rgba(59, 130, 246, 0.2)", borderTopColor: "#3b82f6", borderRadius: "50%", margin: "0 auto 1rem" }} />
+            <p style={{ fontWeight: 600, letterSpacing: "1px" }}>INITIALIZING NOVELLEYX...</p>
+          </div>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }
