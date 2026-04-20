@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { 
   LayoutDashboard, Users, FileText, CheckSquare, 
   BarChart, MessageSquare, Calendar, Settings,
-  Thermometer, TrendingUp, ClipboardList
+  Thermometer, TrendingUp, ClipboardList, LogOut
 } from "lucide-react";
 
 export default function Sidebar({ activeTab, setActiveTab }) {
@@ -37,24 +37,23 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-header" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "1.5rem 1rem" }}>
-        <div style={{ 
-          width: "40px", height: "40px", 
-          background: "linear-gradient(135deg, #d4af37 0%, #aa7c11 100%)", 
-          borderRadius: "8px", 
-          display: "flex", alignItems: "center", justifyContent: "center", 
-          color: "#111", fontWeight: "bold", fontSize: "1.5rem",
-          boxShadow: "0 4px 10px rgba(212, 175, 55, 0.3)"
-        }}>
-          N
+      <div className="sidebar-header" style={{ padding: "2.5rem 2rem 2rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ 
+            width: "36px", height: "36px", 
+            background: "linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%)", 
+            borderRadius: "10px", 
+            display: "flex", alignItems: "center", justifyContent: "center", 
+            color: "#fff", fontWeight: "bold", fontSize: "1.2rem",
+            boxShadow: "0 4px 15px rgba(59, 130, 246, 0.4)"
+          }}>
+            X
+          </div>
+          <h2 style={{ fontSize: "1.25rem", margin: 0, fontWeight: "800", letterSpacing: "1px", color: "var(--text-primary)" }}>NOVELLEYX</h2>
         </div>
-        <h2 style={{ fontSize: "1.5rem", margin: 0, fontWeight: "700", letterSpacing: "2px", color: "var(--text-primary)" }}>NOVELLEYX</h2>
       </div>
       
       <nav className="sidebar-nav">
-        <div style={{ marginBottom: "1rem", fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "1px", fontWeight: "600", paddingLeft: "1rem" }}>
-          Menu
-        </div>
         {navItems.map((item) => (
           <button 
             key={item.id}
@@ -63,15 +62,19 @@ export default function Sidebar({ activeTab, setActiveTab }) {
             style={{ width: "100%", justifyContent: "flex-start", textAlign: "left" }}
           >
             {item.icon}
-            {item.label}
+            <span style={{ fontSize: "0.95rem" }}>{item.label}</span>
           </button>
         ))}
       </nav>
 
-      <div style={{ padding: "1rem", borderTop: "1px solid var(--border-color)" }}>
-        <button className={`nav-item ${activeTab === "settings" ? "active" : ""}`} onClick={() => setActiveTab("settings")} style={{ width: "100%", justifyContent: "flex-start", textAlign: "left" }}>
+      <div style={{ padding: "1.5rem 1.25rem", marginTop: "auto", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <button className={`nav-item ${activeTab === "settings" ? "active" : ""}`} onClick={() => setActiveTab("settings")} style={{ width: "100%" }}>
           <Settings size={20} />
           Settings
+        </button>
+        <button onClick={logout} className="nav-item" style={{ width: "100%", color: "#ef4444" }}>
+          <LogOut size={20} />
+          Log out
         </button>
       </div>
     </aside>
